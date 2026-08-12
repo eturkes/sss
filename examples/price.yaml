@@ -1,0 +1,33 @@
+version: 1
+id: flight-quote
+name: HND to SFO quote
+enabled: false
+schedule:
+  every: 4h
+source:
+  type: html
+  url: https://example.com/flights
+  fields:
+    price:
+      selector: .total-price
+      type: money
+      currency: USD
+    itinerary:
+      selector: .itinerary-summary
+assertions:
+  minItems: 1
+  maxItems: 1
+  requiredFields: [price, itinerary]
+  invariantFields: [itinerary]
+rules:
+  - id: under-target
+    type: crosses_below
+    field: price
+    thresholdMinor: 90000
+    currency: USD
+    bootstrap: evaluate_current
+notifications:
+  - type: inbox
+  - type: desktop
+health:
+  failuresBeforeAlert: 2

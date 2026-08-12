@@ -1,0 +1,39 @@
+{
+  "name": "super-smart-scanner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first, declarative web observation and alert engine",
+  "bin": {
+    "sss": "./src/cli.ts"
+  },
+  "scripts": {
+    "dev": "node --watch src/cli.ts serve",
+    "start": "node src/cli.ts serve",
+    "check": "tsc --noEmit",
+    "test": "node --test --test-concurrency=1",
+    "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage",
+    "sss": "node src/cli.ts"
+  },
+  "engines": {
+    "node": ">=24.15 <27",
+    "pnpm": ">=11"
+  },
+  "packageManager": "pnpm@11.3.0",
+  "dependencies": {
+    "@hono/node-server": "2.1.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "cheerio": "1.2.0",
+    "cron-parser": "5.8.1",
+    "fast-xml-parser": "5.10.1",
+    "hono": "4.13.1",
+    "ipaddr.js": "2.5.0",
+    "undici": "8.10.0",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "typescript": "7.0.2"
+  }
+}

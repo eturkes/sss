@@ -1,0 +1,11 @@
+node_modules/
+.sss/
+*.db
+*.db-shm
+*.db-wal
+coverage/
+playwright-report/
+test-results/
+*.log
+.env
+monitors/local/

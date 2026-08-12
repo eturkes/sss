@@ -1,0 +1,24 @@
+version: 1
+id: example-heading
+name: Example.com heading
+enabled: false
+schedule:
+  every: 30m
+source:
+  type: html
+  url: https://example.com/
+  fields:
+    heading:
+      selector: h1
+assertions:
+  minItems: 1
+  maxItems: 1
+  requiredFields: [heading]
+rules:
+  - id: heading-change
+    type: field_changed
+    field: heading
+notifications:
+  - type: inbox
+health:
+  failuresBeforeAlert: 3

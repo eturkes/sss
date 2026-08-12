@@ -1,0 +1,23 @@
+version: 1
+id: agent-research
+name: Agent systems research
+enabled: false
+schedule:
+  every: 2h
+source:
+  type: feed
+  url: https://export.arxiv.org/api/query?search_query=all%3A%22agentic%20systems%22&sortBy=submittedDate&sortOrder=descending&max_results=50
+  keywords: [agent, autonomous, tool]
+  exclude: [survey]
+assertions:
+  allowEmpty: true
+  maxItems: 50
+  requiredFields: [title]
+rules:
+  - id: unseen-paper
+    type: new_items
+notifications:
+  - type: inbox
+  - type: desktop
+health:
+  failuresBeforeAlert: 3

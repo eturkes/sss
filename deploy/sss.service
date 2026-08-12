@@ -1,0 +1,22 @@
+[Unit]
+Description=Super Smart Scanner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Projects/sss
+ExecStart=/usr/bin/env node src/cli.ts serve
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/Projects/sss/.sss
+Environment=NODE_ENV=production
+EnvironmentFile=-%h/.config/sss.env
+
+[Install]
+WantedBy=default.target
