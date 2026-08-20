@@ -221,5 +221,27 @@ function numberOption(args: string[], name: string, fallback: number): number {
 }
 
 function usage(): void {
-  process.stdout.write(`Super Smart Scanner\n\n  init\n  new research|price|page ID\n  validate [ID|PATH]\n  test ID\n  run ID\n  sync\n  status [--json]\n  events [--json] [--limit N]\n  history MONITOR [ITEM] [--json]\n  deliveries [--json] [--limit N]\n  doctor\n  draft 'watch …'\n  serve [--port 7337]\n  daemon\n`);
+  process.stdout.write(`Super Smart Scanner
+
+Usage:
+  sss COMMAND [OPTIONS]
+
+Commands:
+  init                              Create private state and monitor directories.
+  new research|price|page ID        Create a disabled starter recipe.
+  validate [ID|PATH]                Parse recipes without network access.
+  test ID|PATH                      Acquire and extract without writing state or alerts.
+  run ID|PATH                       Run one monitor through the durable pipeline.
+  sync                              Reconcile recipes with SQLite.
+  status [--json]                   Show monitor and delivery health.
+  events [--json] [--limit N]       Show the event inbox.
+  history MONITOR [ITEM] [--json] [--limit N]
+                                    Show accepted observations.
+  deliveries [--json] [--limit N]   Show pending and failed deliveries.
+  doctor                            Check runtime dependencies and configuration.
+  draft 'watch …'                   Ask isolated Codex to create a recipe.
+  serve [--port 7337]               Run the dashboard and background workers.
+  daemon                            Run background workers without the dashboard.
+  help, --help, -h                  Show this help.
+`);
 }

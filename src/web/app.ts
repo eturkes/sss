@@ -78,7 +78,7 @@ function page(monitors: MonitorStatus[], events: ChangeEvent[], delivery: Delive
     <html lang="en">
       <head>
         <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>SSS / Observation Deck</title><link rel="stylesheet" href="/style.css">
+        <title>SSS — Monitor dashboard</title><link rel="stylesheet" href="/style.css">
       </head>
       <body>
         <header>
@@ -87,14 +87,14 @@ function page(monitors: MonitorStatus[], events: ChangeEvent[], delivery: Delive
         </header>
         <main>
           <section class="hero">
-            <div><p class="eyebrow">LOCAL OBSERVATION DECK</p><h1>The web,<br><em>under watch.</em></h1></div>
-            <div class="telemetry"><dl><div><dt>ACTIVE</dt><dd>${active}</dd></div><div><dt>DEGRADED</dt><dd class=${degraded ? "warn" : ""}>${degraded}</dd></div><div><dt>RECENT SIGNALS</dt><dd>${events.length}</dd></div></dl><p>Deterministic capture · durable memory · edge-triggered alerts${delivery.failed ? ` · ${delivery.failed} alert delivery failed` : ""}</p></div>
+            <div><p class="eyebrow">LOCAL OBSERVATION DECK</p><h1>Watch the web.<br><em>Keep the evidence.</em></h1></div>
+            <div class="telemetry"><dl><div><dt>ACTIVE</dt><dd>${active}</dd></div><div><dt>DEGRADED</dt><dd class=${degraded ? "warn" : ""}>${degraded}</dd></div><div><dt>RECENT EVENTS</dt><dd>${events.length}</dd></div></dl><p>SSS captures sources, stores durable history, and alerts on state transitions.${delivery.failed ? ` ${delivery.failed} alert ${delivery.failed === 1 ? "delivery has" : "deliveries have"} failed.` : ""}</p></div>
           </section>
-          <section><div class="section-head"><h2>SCANNERS</h2><span>${monitors.length} configured</span></div>
-            <div class="scanner-grid">${monitors.length ? monitors.map((monitor) => monitorCard(monitor, token)) : html`<div class="empty">No scanner recipes loaded. Run <code>sss new research papers</code>.</div>`}</div>
+          <section><div class="section-head"><h2>MONITORS</h2><span>${monitors.length} configured</span></div>
+            <div class="scanner-grid">${monitors.length ? monitors.map((monitor) => monitorCard(monitor, token)) : html`<div class="empty">No monitors exist yet. Run <code>sss new research papers</code> to create a recipe.</div>`}</div>
           </section>
-          <section><div class="section-head"><h2>SIGNAL LOG</h2><span>newly observed + changed</span></div>
-            <div class="events">${events.length ? events.map(eventRow) : html`<div class="empty">Quiet so far. No recorded signals.</div>`}</div>
+          <section><div class="section-head"><h2>EVENT LOG</h2><span>new and changed items</span></div>
+            <div class="events">${events.length ? events.map(eventRow) : html`<div class="empty">No events exist yet.</div>`}</div>
           </section>
         </main>
         <footer><span>127.0.0.1 · PRIVATE BY DEFAULT</span><span>SSS / v0.1</span></footer>
@@ -107,9 +107,9 @@ function monitorCard(monitor: MonitorStatus, token: string) {
   return html`<article class="scanner ${monitor.errorStreak ? "degraded" : ""}">
     <div class="scanner-top"><span class="state">${state}</span><span class="hash">${monitor.namespace.slice(0, 8)}</span></div>
     <h3>${monitor.name}</h3><code>${monitor.id}</code>
-    <dl class="facts"><div><dt>LAST GOOD</dt><dd>${relative(monitor.lastSuccessAt)}</dd></div><div><dt>NEXT PASS</dt><dd>${monitor.enabled ? relative(monitor.nextDueAt) : "—"}</dd></div></dl>
+    <dl class="facts"><div><dt>LAST SUCCESS</dt><dd>${relative(monitor.lastSuccessAt)}</dd></div><div><dt>NEXT RUN</dt><dd>${monitor.enabled ? relative(monitor.nextDueAt) : "—"}</dd></div></dl>
     ${monitor.lastError ? html`<p class="error">${monitor.lastError}</p>` : ""}
-    <form method="post" action=${`/run/${encodeURIComponent(monitor.id)}`}><input type="hidden" name="csrf" value=${token}><button>SCAN NOW <span>↗</span></button></form>
+    <form method="post" action=${`/run/${encodeURIComponent(monitor.id)}`}><input type="hidden" name="csrf" value=${token}><button>RUN NOW <span>↗</span></button></form>
   </article>`;
 }
 

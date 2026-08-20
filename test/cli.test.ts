@@ -9,6 +9,15 @@ import { test } from "node:test";
 
 const root = resolve(import.meta.dirname, "..");
 
+test("help presents command syntax and action descriptions", () => {
+  const result = spawnSync(process.execPath, ["src/cli.ts", "help"], { cwd: root, encoding: "utf8" });
+  assert.equal(result.status, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /^Super Smart Scanner\n\nUsage:\n  sss COMMAND \[OPTIONS\]/);
+  assert.match(result.stdout, /^  test ID\|PATH\s+Acquire and extract without writing state or alerts\.$/m);
+  assert.match(result.stdout, /^  help, --help, -h\s+Show this help\.$/m);
+});
+
 test("daemon stays resident and exits cleanly on SIGTERM", async (context) => {
   const fixture = await runtimeFixture(context);
   const child = launch(["daemon", "--ephemeral"], fixture);

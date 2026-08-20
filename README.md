@@ -1,23 +1,25 @@
 # Super Smart Scanner
 
-SSS is a local observation engine for things on the web. A YAML recipe says what to collect, what counts as valid, which transition matters, and where to alert. SQLite remembers the last **accepted** observation; failures never become fake changes.
+SSS watches web sources from a local machine. Each YAML recipe configures one monitor and its alert channels.
+SQLite stores the last accepted observation. A failed scan cannot create a false change.
 
 ```text
 recipe → acquire → extract → validate → normalize → compare → event → outbox
 ```
 
-Good fits:
+Use SSS to:
 
-- newly observed research matching a query;
-- a fare quote crossing below a target;
-- a page field changing or a keyed list gaining an item;
-- authenticated pages through an explicit, read-only BrowserOS source.
+- find new research that matches a query;
+- alert when a fare quote crosses below a target;
+- detect a changed page field or a new keyed list item;
+- read allowed authenticated pages through BrowserOS.
 
-SSS does not bypass CAPTCHAs, purchase anything, claim exhaustive research coverage, or treat one airfare quote as a universal market price.
+SSS observes sources but does not bypass CAPTCHAs, make purchases, or guarantee exhaustive research coverage.
+It treats one airfare quote as one observation, not a universal market price.
 
 ## Start
 
-Requires Node `>=24.15 <27` and pnpm 11. The workstation already has Node 26 + pnpm.
+Install Node `>=24.15 <27` and pnpm 11. This workstation already includes Node 26 and pnpm.
 
 ```bash
 pnpm install
@@ -30,30 +32,30 @@ pnpm sss run papers
 pnpm sss serve
 ```
 
-Open <http://127.0.0.1:7337>. `serve` owns the scheduler, alert outbox, and dashboard. `daemon` runs the same workers without the dashboard.
+Open <http://127.0.0.1:7337>. `serve` runs the scheduler, alert outbox, and dashboard.
+Use `daemon` to run the scheduler and delivery worker without the dashboard.
 
-Common commands:
-
-```text
-sss init                         create private state/config directories
-sss new research|price|page ID  create a disabled starter recipe
-sss validate [ID|PATH]          parse policy + schema without network access
-sss test ID                     acquire/extract with no state or alert writes
-sss run ID                      run once through the durable pipeline
-sss sync                         reconcile YAML → SQLite; removed recipes pause
-sss status                       show attempt/success/schedule health separately
-sss events [--json]             inspect the signal inbox
-sss history MONITOR [ITEM]      inspect immutable accepted observations
-sss deliveries                  inspect pending/failed alert delivery
-sss doctor                       verify runtime, recipes, SQLite, BrowserOS
-sss draft 'watch …'              ask isolated Codex for schema-constrained JSON
-sss serve [--port 7337]          dashboard + scheduler + delivery worker
-sss daemon                       scheduler + delivery worker
-```
+| Command | Action |
+|---|---|
+| `sss init` | Create the private state and monitor directories. |
+| `sss new research\|price\|page ID` | Create a disabled starter recipe. |
+| `sss validate [ID\|PATH]` | Parse the recipe policy and schema without network access. |
+| `sss test ID\|PATH` | Acquire and extract without writing state or alerts. |
+| `sss run ID\|PATH` | Run one monitor through the durable pipeline. |
+| `sss sync` | Reconcile recipes with SQLite. Pause monitors without recipes. |
+| `sss status [--json]` | Show separate attempt, success, schedule, and delivery health. |
+| `sss events [--json] [--limit N]` | Show the event inbox. |
+| `sss history MONITOR [ITEM] [--json] [--limit N]` | Show accepted observations. |
+| `sss deliveries [--json] [--limit N]` | Show pending and failed alert deliveries. |
+| `sss doctor` | Check the runtime, recipes, SQLite, and BrowserOS. |
+| `sss draft 'watch …'` | Ask isolated Codex to produce schema-constrained JSON. |
+| `sss serve [--port 7337]` | Run the dashboard, scheduler, and delivery worker. |
+| `sss daemon` | Run the scheduler and delivery worker. |
 
 ## Recipe contract
 
-Each `monitors/*.yaml` file contains one version-1 recipe. See [`examples/`](./examples) for complete research, price, and page monitors.
+Put one version 1 recipe in each `monitors/*.yaml` file.
+See [`examples/`](./examples) for complete research, price, and page recipes.
 
 ```yaml
 version: 1
@@ -82,28 +84,41 @@ health: { failuresBeforeAlert: 3 }
 
 | Type | Use | Notes |
 |---|---|---|
-| `feed` | RSS, Atom, arXiv API feeds | DOI → arXiv ID → canonical URL → provider ID identity |
-| `json` | supported APIs | safe dotted paths + explicit field mapping |
-| `html` | static pages | Cheerio CSS selectors; no script execution |
-| `openalex` | research search | needs `OPENALEX_API_KEY`; stable work IDs |
-| `browseros` | signed-in/dynamic pages | direct MCP navigation/read only; fixed local endpoint |
+| `feed` | Reads RSS, Atom, and arXiv API feeds. | Resolves identity from a DOI, arXiv ID, canonical URL, or provider ID. |
+| `json` | Reads supported APIs. | Uses safe dotted paths and explicit field mappings. |
+| `html` | Reads static pages. | Uses Cheerio CSS selectors without script execution. |
+| `openalex` | Searches research. | Requires `OPENALEX_API_KEY` and uses stable work IDs. |
+| `browseros` | Reads signed-in or dynamic pages. | Uses direct, read-only MCP calls through a fixed local endpoint. |
 
-Prefer official APIs/feeds over page scraping. BrowserOS is a high-trust exception: scheduled recipes can navigate and read allowed origins, but cannot click, fill forms, download, evaluate JavaScript, or access app connectors.
+Prefer official APIs and feeds over page scraping. When a page needs an authenticated browser session, use BrowserOS.
+A scheduled BrowserOS recipe can navigate to and read allowed origins.
+It cannot click, fill forms, download, evaluate JavaScript, or access app connectors.
 
 ### Rules and bootstrapping
 
-- `new_items`: alert once for identities first seen after priming.
-- `field_changed`: compare one normalized field.
-- `crosses_below`: edge-triggered; quiet while below, re-arm above, alert on the next crossing.
-- `numeric_delta`: absolute and/or percentage movement, optionally directional.
+- `new_items` alerts once for identities that appear after priming.
+- `field_changed` alerts when one normalized field changes.
+- `crosses_below` alerts on a downward crossing and re-arms above the threshold. It stays quiet below the threshold.
+- `numeric_delta` alerts on configured absolute or percentage movement. It can restrict the direction.
 
-`bootstrap: suppress_existing` is the default. Use `evaluate_current` for conditions such as “tell me immediately if the first observed fare is already below the target.” For a valid query that may return zero items, set `assertions.allowEmpty: true`; malformed feeds/login pages still degrade. Source/assertion/rule changes create a new semantic namespace and silently establish a compatible baseline. Schedule, name, notification, and health changes retain state. Rule enablement changes re-prime to prevent a fabricated edge.
+By default, `bootstrap: suppress_existing` suppresses alerts during the first accepted scan.
+When the first accepted value must trigger an existing condition, use `evaluate_current`.
 
-Money is `{ minor: integer, currency: ISO-4217 }`. Money extractors require an explicit currency and reject negative, ambiguous, conflicting-currency values. Put quote context such as itinerary/date/passenger count in both `requiredFields` and `invariantFields`; any context drift then degrades instead of triggering a price comparison.
+If a valid query can return no items, set `assertions.allowEmpty: true`.
+Malformed feeds and login pages still degrade the run.
+
+A source, assertion, or rule change creates a new semantic namespace.
+SSS establishes a compatible baseline without an alert. Schedule, name, notification, and health changes keep existing state.
+Changing rule enablement re-primes the rule and prevents a false edge.
+
+SSS represents money as `{ minor: integer, currency: ISO-4217 }`.
+Specify an explicit currency for every money extractor. SSS rejects negative, ambiguous, or conflicting-currency values.
+For a quote, add its itinerary, date, and passenger count to `requiredFields` and `invariantFields`.
+If that context changes, the scan degrades and skips the price comparison.
 
 ### Notifications
 
-The dashboard inbox is always durable. Optional channels:
+The dashboard inbox stores every event durably. Add optional channels to a recipe:
 
 ```yaml
 notifications:
@@ -117,42 +132,69 @@ notifications:
     headers: { Authorization: { env: SSS_WEBHOOK_AUTH } }
 ```
 
-Delivery is at-least-once. An event commits before delivery; failed deliveries retry with bounded exponential backoff and never make the scan itself fail. Secrets use environment references and are excluded from errors/status.
-`sss status`, `sss deliveries`, `sss doctor`, and `/api/deliveries` expose delivery backlog/failures.
+SSS uses at-least-once delivery. It commits each event before delivery.
+Failed deliveries retry with bounded exponential backoff. A delivery failure does not fail the scan.
+A retried channel can receive a duplicate.
+
+Reference secrets through environment variables. SSS removes their values from errors and status output.
+`sss status`, `sss deliveries`, `sss doctor`, and `/api/deliveries` show the delivery backlog and failures.
 
 ## Safety model
 
-- General acquisition allows public HTTP(S) only. DNS and every redirect are checked; private, loopback, link-local, metadata, mixed-answer, mapped, and unusual numeric IP forms are rejected. The validated address is pinned for the connection.
-- Response bytes, redirects, and time are bounded. Proxy environment variables are ignored.
-- Extracted text is inert data: no recursive fetches, shell, `eval`, remote images, or tool-capable agent loop.
-- Dashboard binds to loopback and rejects foreign `Host`/`Origin`, uses CSRF tokens, escaping, and a restrictive CSP.
-- `.sss/` is private (`0700`); raw authenticated bodies are not retained.
-- Accepted observations retain 180 days (latest item snapshot always retained); unreferenced runs and successful deliveries retain 30 days.
+- General acquisition accepts only public HTTP(S) targets.
+  SSS checks DNS and every redirect.
+  It rejects private, loopback, link-local, metadata, mixed-answer, mapped, and unusual numeric IP forms.
+  It pins the validated address to the connection.
+- SSS limits response bytes, redirect count, and elapsed time. It ignores proxy environment variables.
+- Extracted text remains inert data.
+  It cannot start recursive fetches, shell commands, `eval`, remote image loads, or tool-enabled agent loops.
+- The dashboard binds to loopback and rejects foreign `Host` and `Origin` values.
+  It uses CSRF tokens, output escaping, and a restrictive Content Security Policy.
+- SSS creates `.sss/` with mode `0700`. It does not retain raw authenticated response bodies.
+- SSS retains accepted observations for 180 days and always retains the latest item snapshot.
+  It retains unreferenced runs and successful deliveries for 30 days.
 
-## BrowserOS + Codex
+## BrowserOS and Codex
 
-BrowserOS was chosen only for pages needing the existing authenticated browser. Its MCP endpoint is fixed to `http://127.0.0.1:9000/mcp`; set `SSS_BROWSEROS_ORIGINS` to comma-separated permitted origins before enabling such a recipe.
+Use BrowserOS only for pages that require an existing authenticated browser session.
+SSS uses the fixed MCP endpoint `http://127.0.0.1:9000/mcp`.
+Before you enable a BrowserOS recipe, set `SSS_BROWSEROS_ORIGINS` to the permitted origins.
+Separate multiple origins with commas.
 
-[`examples/browseros-price.yaml`](./examples/browseros-price.yaml) shows typed selector reads for an authenticated fare. BrowserOS content stays data; only direct `tabs`, `navigate`, and `read` calls are available.
+[`examples/browseros-price.yaml`](./examples/browseros-price.yaml) demonstrates typed selector reads for an authenticated fare.
+BrowserOS content remains data. SSS permits only direct `tabs`, `navigate`, and `read` calls.
 
-`sss draft` runs `codex exec` ephemerally with read-only filesystem access, no user MCP configuration, a strict output schema, `gpt-5.6-sol`, and maximum reasoning. Codex authors recipes; page content never drives a tool-capable Codex session.
+`sss draft` starts an ephemeral `codex exec` process.
+The process receives read-only filesystem access and no user MCP configuration.
+It uses a strict output schema, `gpt-5.6-sol`, and maximum reasoning.
+Codex writes recipes. Page content cannot control a tool-enabled Codex session.
 
 ## Service
 
-Copy and edit [`deploy/sss.service`](./deploy/sss.service), then:
+Install the bundled [`deploy/sss.service`](./deploy/sss.service) user service.
+Before you start the service, edit its paths:
 
 ```bash
+install -Dm644 deploy/sss.service ~/.config/systemd/user/sss.service
+$EDITOR ~/.config/systemd/user/sss.service
 systemctl --user daemon-reload
 systemctl --user enable --now sss.service
 ```
 
-Put required secret variables and `SSS_BROWSEROS_ORIGINS` in `~/.config/sss.env` with mode `0600`; the unit loads it without storing secrets in this repository.
+Put required secrets and `SSS_BROWSEROS_ORIGINS` in `~/.config/sss.env`.
+Set the file mode to `0600`. The unit loads this file without storing secrets in the repository.
 
-State defaults to `.sss/sss.db`. Override paths with `SSS_STATE_DIR` and `SSS_MONITORS_DIR`. Back up the SQLite database only while stopped, or use SQLite's online backup API.
+By default, SSS stores state in `.sss/sss.db`.
+Set `SSS_STATE_DIR` and `SSS_MONITORS_DIR` to override the default paths.
+Before you back up the database, stop SSS. Alternatively, use SQLite's online backup API.
 
-The bundled airfare recipes are selector/invariant patterns, not provider adapters: replace the placeholder URL/selectors with one immutable route/date/passenger search result. SSS reads quotes; it does not fill search forms or buy tickets.
+The bundled airfare recipes demonstrate selector and invariant patterns. They are not provider adapters.
+Replace the placeholder URL and selectors. Use one immutable route, date, passenger count, and search result.
+SSS reads quotes but does not fill search forms or buy tickets.
 
 ## Develop
+
+Run the checks:
 
 ```bash
 pnpm check
@@ -160,4 +202,4 @@ pnpm test
 pnpm test:coverage
 ```
 
-The tests are fixture-backed and make no external writes.
+The tests use fixtures. They do not change external services.
