@@ -106,6 +106,7 @@ It cannot click, fill forms, download, evaluate JavaScript, or access app connec
 - `llm_assessment` alerts when `gpt-6.1-sol` with `xhigh` reasoning judges an observation suggestive.
 
 An assessment rule includes a trusted `prompt` rubric. Acquired text and conversations remain inert evidence.
+Set `product: claude` for Claude.ai and Claude Code allowance resets. The default product is `codex`.
 SSS stores positive and negative judgments. By default, it reassesses changed posts but skips unchanged posts.
 The revision key covers the complete observation JSON, including its title, URL, publication time, and extracted data.
 Object key order and acquisition time do not trigger reassessment.
@@ -198,9 +199,11 @@ Assessment uses the existing Codex ChatGPT login and the fixed Codex inference e
 Each inference request specifies `tools: []`, `tool_choice: none`, `gpt-6.1-sol`, and `xhigh` reasoning.
 SSS rejects tool-call output and incomplete responses. Codex model discovery refreshes expired login credentials without receiving page content.
 
-### Codex reset monitor
+### Usage-reset monitors
 
 [`monitors/thsottiaux-codex-reset.yaml`](./monitors/thsottiaux-codex-reset.yaml) watches `@thsottiaux` for Codex usage-limit reset hints every five minutes.
+[`monitors/claudedevs-claude-reset.yaml`](./monitors/claudedevs-claude-reset.yaml) watches `@ClaudeDevs` for Claude.ai and Claude Code usage-reset hints on the same schedule.
+Both use `gpt-6.1-sol` with `xhigh` reasoning. They send matching observations to the configured Gmail recipient.
 The five-minute poll uses deterministic BrowserOS reads, not inference. Only unseen post or reply IDs reach the model.
 It includes authored posts, replies, emojis, quoted text, parent context, and accessible attached images.
 The first accepted scan suppresses existing posts. Matching future observations send email to the configured recipient.
@@ -209,7 +212,7 @@ Health failures and recovery remain in the inbox. They do not send reset-hint em
 
 The X adapter uses Latest search without a keyword filter. It verifies each post's primary author before pagination.
 It reads full posts and preserves reply and quote context. Display timestamps cannot trigger another assessment.
-For known IDs, this monitor reuses accepted content and does not reopen post pages.
+For known IDs, these monitors reuse accepted content and do not reopen post pages.
 Missing overlap, incomplete posts, login errors, and acquisition limits degrade the scan.
 X search can omit unindexed or deleted posts. This browser source cannot guarantee exhaustive coverage.
 Videos are not transcribed. Image assessment requires accessible X image URLs.
@@ -217,6 +220,7 @@ Videos are not transcribed. Image assessment requires accessible X image URLs.
 Keep the machine and BrowserOS Neo running. Keep the X session, Codex login, and email account authenticated.
 Run `sss validate`, `sss test`, and `sss doctor` before you enable the recipe.
 When only the X assessment trigger becomes stricter, SSS inherits acquisition history without copying old judgments or creating alerts.
+The version 2 X parser upgrade also preserves compatible strict-new history and the original startup cutoff.
 
 ## Service
 

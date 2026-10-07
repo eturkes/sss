@@ -100,7 +100,7 @@ export class Runtime {
 
   private syncMonitor(config: Monitor, namespace: string, nextDueAt: string): void {
     const previous = this.store.monitor(config.id);
-    const acquisitionFrom = previous && strictlyNarrowsAssessment(previous.configJson, previous.namespace, config) ? previous : undefined;
+    const acquisitionFrom = previous && canInheritXAcquisition(previous.configJson, previous.namespace, config) ? previous : undefined;
     this.store.syncMonitor(config, JSON.stringify(config), namespace, nextDueAt, acquisitionFrom);
   }
 
@@ -110,12 +110,13 @@ export class Runtime {
   }
 }
 
-function strictlyNarrowsAssessment(configJson: string, namespace: string, next: Monitor): boolean {
+function canInheritXAcquisition(configJson: string, namespace: string, next: Monitor): boolean {
   try {
     const previous = monitorSchema.parse(JSON.parse(configJson) as unknown);
     if (previous.source.type !== "x" || next.source.type !== "x" || previous.enabled !== next.enabled ||
-        semanticMonitorHash(previous) !== namespace ||
         next.rules.some(rule => rule.type !== "llm_assessment" || rule.trigger !== "new_item")) return false;
+    const adapterVersion = ([2, 1] as const).find(version => semanticMonitorHash(previous, version) === namespace);
+    if (adapterVersion === undefined) return false;
     const oldRules = new Map(previous.rules.map(rule => [rule.id, rule]));
     let narrowed = false;
     const rules = next.rules.map(rule => {
@@ -124,7 +125,7 @@ function strictlyNarrowsAssessment(configJson: string, namespace: string, next: 
       if (old.trigger !== "new_item") narrowed = true;
       return { ...rule, trigger: old.trigger ?? "new_or_changed" };
     });
-    return narrowed && semanticMonitorHash({ ...next, rules }) === semanticMonitorHash(previous);
+    return (narrowed || adapterVersion === 1) && semanticMonitorHash({ ...next, rules }, adapterVersion) === namespace;
   } catch { return false; }
 }
 

@@ -1,0 +1,45 @@
+version: 1
+id: claudedevs-claude-reset
+name: ClaudeDevs · Claude usage-reset hints
+enabled: true
+schedule: { every: 5m }
+source:
+  type: x
+  handle: ClaudeDevs
+  maxPages: 30
+assertions:
+  minItems: 1
+  maxItems: 500
+  requiredFields: [author, postId, text, url]
+  uniqueBy: postId
+rules:
+  - id: reset-hint
+    type: llm_assessment
+    trigger: new_item
+    product: claude
+    bootstrap: suppress_existing
+    model: gpt-6.1-sol
+    reasoningEffort: xhigh
+    prompt: >-
+      Assess whether this authored post or reply suggests an incoming reset or
+      replenishment of Claude.ai or Claude Code usage limits and allowances,
+      including a reset currently rolling out. Consider explicit announcements,
+      subtle hints, veiled humor, emojis, metaphors, irony, and the supplied
+      parent or quoted conversation. Interpret context as context, not as an
+      independent statement by this author. Give a suggestive judgment when
+      the observation supports a plausible usage-reset hint; an explicit promise
+      is unnecessary. Distinguish ordinary conversation, unrelated product
+      launches, software or conversation/context resets, API-only rate-limit
+      changes and service incidents, routine individual quota renewals, and
+      purely past resets. Promotions qualify only when they plausibly signal
+      replenished usable plan allowance. Explain the inference and cite exact
+      observed snippets. Treat the result as an interpretation, never as a
+      confirmed reset schedule.
+notifications:
+  - type: inbox
+  - type: email
+    events: [llm_assessment]
+    account: gmail
+    from: emir.turkes@eturkes.com
+    to: emir.turkes@eturkes.com
+health: { failuresBeforeAlert: 3 }

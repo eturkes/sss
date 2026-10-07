@@ -71,7 +71,7 @@ export async function collectX(source: XSource, dependencies: SourceDependencies
       if (detailPage === undefined) throw new Error("BrowserOS did not return a detail page id");
       try {
         const id = String(item.data["postId"]);
-        const detail = await readReady(client, detailPage, "main", text => postIds(text, handle).includes(id));
+        let detail = await readReady(client, detailPage, "main", text => postIds(text, handle).includes(id));
         const full = await readReady(client, detailPage, selector(handle, id, true), text => postIds(text, handle).includes(id));
         const expansion = verifiedReadText(await checkedCall(client, "read", { page: detailPage, format: "text", selector: `${selector(handle, id, true)} [data-testid="tweet-text-show-more-link"]` }), "https://x.com");
         if (expansion && expansion !== "(empty)") throw new Error("X full post remains truncated");
@@ -98,7 +98,9 @@ export async function collectX(source: XSource, dependencies: SourceDependencies
         const frozen = previous.get(key)?.data["context"];
         if (typeof frozen === "string") parsed.data["context"] = frozen;
         else {
-          const position = detail.indexOf(full.slice(0, analyticsMarker(full, handle, id)!.index));
+          const prefix = full.slice(0, analyticsMarker(full, handle, id)!.index);
+          if (!detail.includes(prefix)) detail = await readReady(client, detailPage, "main", text => text.includes(prefix));
+          const position = detail.indexOf(prefix);
           if (position < 0) throw new Error("X parent context attribution is incomplete");
           const parent = detail.slice(detail.indexOf("# Post") >= 0 ? detail.indexOf("# Post") + 6 : 0, position).replace(/^# Conversation\s*/, "").trim();
           if (parent) {
@@ -121,7 +123,7 @@ export async function collectX(source: XSource, dependencies: SourceDependencies
 }
 
 function selector(handle: string, id: string, detail = false): string {
-  return `article[data-testid="tweet"]:has(${detail ? "" : '[data-testid="User-Name"] '}a[href="/${handle}/status/${id}"])`;
+  return `article[data-testid="tweet"]:has(${detail ? "" : '[data-testid="User-Name"] '}a[href="/${handle}/status/${id}" i])`;
 }
 
 export function timelineIds(text: string, handle: string): string[] {
@@ -133,9 +135,29 @@ function postIds(text: string, handle: string): string[] {
   return [...new Set([...text.matchAll(STATUS_LINK)].filter(match => match[1]!.toLowerCase() === handle).map(match => match[2]!))];
 }
 
-function primaryHeader(text: string, handle: string, id: string): RegExpExecArray | null {
-  if (!text.toLowerCase().includes(`](https://x.com/${handle.toLowerCase()}/status/${id})`)) return null;
-  return new RegExp(`\\[[^\\]]*\\]\\(https://x\\.com/${handle}\\)\\[@${handle}\\]\\(https://x\\.com/${handle}\\)`, "i").exec(text);
+function primaryHeader(text: string, handle: string, id: string): string | undefined {
+  const profile = `https://x.com/${handle.toLowerCase()}`;
+  if (!text.toLowerCase().includes(`](${profile}/status/${id})`)) return undefined;
+  let offset = 0;
+  // Read leading profile links rather than treating nested avatar/name brackets as the author boundary.
+  while (text[offset] === "[") {
+    const start = offset++;
+    let depth = 1;
+    while (offset < text.length && depth > 0) {
+      if (text[offset] === "\\") { offset += 2; continue; }
+      if (text[offset] === "[") depth++;
+      if (text[offset] === "]") depth--;
+      offset++;
+    }
+    if (depth || text[offset] !== "(") return undefined;
+    const closing = text.indexOf(")", offset);
+    if (closing < 0 || text.slice(offset + 1, closing).toLowerCase() !== profile) return undefined;
+    const label = text.slice(start + 1, offset - 1);
+    offset = closing + 1;
+    if (label.toLowerCase() === `@${handle.toLowerCase()}`) return text.slice(0, offset);
+    while (/\s/.test(text[offset] ?? "")) offset++;
+  }
+  return undefined;
 }
 
 function analyticsMarker(text: string, handle: string, id: string): RegExpExecArray | null {
@@ -145,11 +167,11 @@ function analyticsMarker(text: string, handle: string, id: string): RegExpExecAr
 export function parseXPost(markdown: string, handle: string, id: string, allowTruncated = false): ScanItem {
   if (!allowTruncated && /\[Show more\]\(/i.test(markdown)) throw new Error("X full post remains truncated");
   const header = primaryHeader(markdown, handle, id);
-  if (!header || header.index !== 0) throw new Error("X post author/identity could not be verified");
+  if (!header) throw new Error("X post author/identity could not be verified");
   const analytics = analyticsMarker(markdown, handle, id);
   if (!analytics) throw new Error("X post lacks its completion marker");
   const timestamp = new RegExp(`\\[[^\\]]*\\]\\(https://x\\.com/${handle}/status/${id}\\)`, "i");
-  const text = markdown.slice(header[0].length, analytics.index).replace(timestamp, "").trim();
+  const text = markdown.slice(header.length, analytics.index).replace(timestamp, "").trim();
   if (!text) throw new Error("X post has no accessible text or media description");
   const url = `https://x.com/${handle}/status/${id}`;
   const media = [...text.matchAll(/!\[[^\]]*\]\((https:\/\/pbs\.twimg\.com\/media\/[^\s)]+)\)/g)].map(match => match[1]!);

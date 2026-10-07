@@ -6,6 +6,7 @@ import { isCurrencyCode } from "../core/money.ts";
 
 export const SAFE_ID_PATTERN = /^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/;
 export const ENV_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
+export const X_ADAPTER_VERSION = 2;
 
 export const idSchema = z
   .string()
@@ -413,6 +414,7 @@ export const assessmentRuleSchema = z.object({
   ...ruleBaseShape,
   type: z.literal("llm_assessment"),
   trigger: z.enum(["new_item", "new_or_changed"]).optional(),
+  product: z.enum(["codex", "claude"]).optional(),
   model: z.literal("gpt-6.1-sol"),
   reasoningEffort: z.literal("xhigh"),
   prompt: z.string().trim().min(1).max(10_000),
@@ -579,12 +581,12 @@ export type MonitorConfig = Monitor;
 
 export type SemanticMonitorValue = Record<string, unknown>;
 
-export function semanticMonitorValue(monitor: Monitor): SemanticMonitorValue {
+export function semanticMonitorValue(monitor: Monitor, xAdapterVersion: 1 | 2 = X_ADAPTER_VERSION): SemanticMonitorValue {
   const assertions = monitor.assertions ?? {};
   return {
     version: monitor.version,
     id: monitor.id,
-    source: effectiveSource(monitor.source),
+    source: effectiveSource(monitor.source, xAdapterVersion),
     assertions: {
       allowEmpty: assertions.allowEmpty ?? false,
       minItems: assertions.allowEmpty ? 0 : assertions.minItems ?? 1,
@@ -596,14 +598,15 @@ export function semanticMonitorValue(monitor: Monitor): SemanticMonitorValue {
     rules: monitor.rules.map((rule) => ({
       ...rule,
       ...(rule.type === "llm_assessment" ? { trigger: rule.trigger === "new_item" ? rule.trigger : undefined } : {}),
+      ...(rule.type === "llm_assessment" ? { product: rule.product === "claude" ? rule.product : undefined } : {}),
       enabled: rule.enabled ?? true,
       ...(rule.type === "numeric_delta" ? { direction: rule.direction ?? "any" } : {}),
     })).sort((left, right) => left.id.localeCompare(right.id, "en")),
   };
 }
 
-function effectiveSource(source: Source): Record<string, unknown> {
-  if (source.type === "x") return { ...source, handle: source.handle.toLowerCase(), adapterVersion: 1 };
+function effectiveSource(source: Source, xAdapterVersion: 1 | 2): Record<string, unknown> {
+  if (source.type === "x") return { ...source, handle: source.handle.toLowerCase(), adapterVersion: xAdapterVersion };
   if (source.type === "feed") {
     const { includeKeywords: _include, excludeKeywords: _exclude, keywords, exclude, ...rest } = source;
     return { ...rest, keywords: sortedUnique(keywords ?? source.includeKeywords ?? []), exclude: sortedUnique(exclude ?? source.excludeKeywords ?? []) };
@@ -635,7 +638,7 @@ function stableJson(value: unknown): string {
   return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`).join(",")}}`;
 }
 
-export function semanticMonitorHash(input: unknown): string {
+export function semanticMonitorHash(input: unknown, xAdapterVersion: 1 | 2 = X_ADAPTER_VERSION): string {
   const monitor = monitorSchema.parse(input);
-  return createHash("sha256").update(stableJson(semanticMonitorValue(monitor))).digest("hex");
+  return createHash("sha256").update(stableJson(semanticMonitorValue(monitor, xAdapterVersion))).digest("hex");
 }
