@@ -48,6 +48,11 @@ export async function collectX(source: XSource, dependencies: SourceDependencies
         const key = `x:${id}`;
         if (found.has(key)) continue;
         if (!previous.has(key) && bootstrapCutoff !== undefined && BigInt(id) <= bootstrapCutoff) continue;
+        if (context?.newItemsOnly && previous.has(key)) {
+          overlap = true;
+          found.set(key, previous.get(key)!);
+          continue;
+        }
         const markdown = await readReady(client, page, selector(handle, id), text => [...text.matchAll(STATUS_LINK)].length > 0);
         const item = parseXPost(markdown, handle, id, true);
         if (previous.has(key)) overlap = true;
@@ -60,6 +65,7 @@ export async function collectX(source: XSource, dependencies: SourceDependencies
       if (index + 1 === source.maxPages) throw new Error("X page limit reached before accepted overlap; coverage is incomplete");
     }
     for (const [key, item] of found) {
+      if (context?.newItemsOnly && previous.has(key)) continue;
       // Keep the search snapshot open while each complete post loads in a separate, short-lived tab.
       const detailPage = pageId(await checkedCall(client, "tabs", { action: "new", url: item.url! }));
       if (detailPage === undefined) throw new Error("BrowserOS did not return a detail page id");

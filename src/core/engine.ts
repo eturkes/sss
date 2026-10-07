@@ -16,7 +16,7 @@ export type RunResult = {
   dryRun: boolean;
 };
 
-export type CollectorContext = { previousItems: ScanItem[]; bootstrapItemIds?: string[] };
+export type CollectorContext = { previousItems: ScanItem[]; bootstrapItemIds?: string[]; newItemsOnly?: boolean };
 export type Collector = (source: unknown, context?: CollectorContext) => Promise<Collection>;
 export type ItemAssessor = (item: ScanItem, rule: AssessmentRule) => Promise<AssessmentResult>;
 const MONITOR_LEASE_MS = 30 * 60_000;
@@ -68,7 +68,9 @@ export class ScannerEngine {
         ...(previous.title ? { title: previous.title } : {}), ...(previous.url ? { url: previous.url } : {}),
       }));
       const bootstrapItemIds = this.store.bootstrapItemIds(monitor.id, namespace);
-      collection = await this.collect(monitor.source, { previousItems, bootstrapItemIds });
+      const enabledRules = monitor.rules.filter(rule => rule.enabled !== false);
+      const newItemsOnly = monitor.source.type === "x" && enabledRules.length > 0 && enabledRules.every(rule => rule.type === "llm_assessment" && rule.trigger === "new_item");
+      collection = await this.collect(monitor.source, { previousItems, bootstrapItemIds, ...(newItemsOnly ? { newItemsOnly } : {}) });
       assertCollection(collection, monitor.assertions);
       assertRuleInputs(collection, monitor.rules);
     } catch (error) {
@@ -101,8 +103,9 @@ export class ScannerEngine {
       for (const item of sourceItems) {
         for (const rule of monitor.rules) {
           if (rule.enabled === false || rule.type !== "llm_assessment") continue;
-          const revision = sha256(assessmentJson(item.data));
           const previousState = this.store.ruleState(monitor.id, namespace, rule.id, item.id);
+          if (rule.trigger === "new_item" && (previousState !== undefined || existing.has(item.id))) continue;
+          const revision = sha256(assessmentJson(item.data));
           if (previousState?.["revision"] === revision) continue;
           let result: AssessmentResult | undefined;
           if (baselineExists || rule.bootstrap === "evaluate_current") {

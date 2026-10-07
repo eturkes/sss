@@ -412,6 +412,7 @@ export const numericDeltaRuleSchema = z
 export const assessmentRuleSchema = z.object({
   ...ruleBaseShape,
   type: z.literal("llm_assessment"),
+  trigger: z.enum(["new_item", "new_or_changed"]).optional(),
   model: z.literal("gpt-6.1-sol"),
   reasoningEffort: z.literal("xhigh"),
   prompt: z.string().trim().min(1).max(10_000),
@@ -594,6 +595,7 @@ export function semanticMonitorValue(monitor: Monitor): SemanticMonitorValue {
     },
     rules: monitor.rules.map((rule) => ({
       ...rule,
+      ...(rule.type === "llm_assessment" ? { trigger: rule.trigger === "new_item" ? rule.trigger : undefined } : {}),
       enabled: rule.enabled ?? true,
       ...(rule.type === "numeric_delta" ? { direction: rule.direction ?? "any" } : {}),
     })).sort((left, right) => left.id.localeCompare(right.id, "en")),

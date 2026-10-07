@@ -106,7 +106,9 @@ It cannot click, fill forms, download, evaluate JavaScript, or access app connec
 - `llm_assessment` alerts when `gpt-6.1-sol` with `xhigh` reasoning judges an observation suggestive.
 
 An assessment rule includes a trusted `prompt` rubric. Acquired text and conversations remain inert evidence.
-SSS stores positive and negative judgments. It reassesses changed posts but skips unchanged posts.
+SSS stores positive and negative judgments. By default, it reassesses changed posts but skips unchanged posts.
+Set `trigger: new_item` to assess each accepted identity once. Edits, quote changes, and returning identities do not trigger inference.
+An unaccepted post can retry after an assessment failure.
 An assessment failure preserves the accepted baseline. The result describes a model interpretation, not a confirmed future event.
 
 By default, `bootstrap: suppress_existing` suppresses alerts during the first accepted scan.
@@ -195,6 +197,7 @@ SSS rejects tool-call output and incomplete responses. Codex model discovery ref
 ### Codex reset monitor
 
 [`monitors/thsottiaux-codex-reset.yaml`](./monitors/thsottiaux-codex-reset.yaml) watches `@thsottiaux` for Codex usage-limit reset hints every five minutes.
+The five-minute poll uses deterministic BrowserOS reads, not inference. Only unseen post or reply IDs reach the model.
 It includes authored posts, replies, emojis, quoted text, parent context, and accessible attached images.
 The first accepted scan suppresses existing posts. Matching future observations send email to the configured recipient.
 The first-scan boundary also suppresses historical posts that later page loads expose.
@@ -202,12 +205,14 @@ Health failures and recovery remain in the inbox. They do not send reset-hint em
 
 The X adapter uses Latest search without a keyword filter. It verifies each post's primary author before pagination.
 It reads full posts and preserves reply and quote context. Display timestamps cannot trigger another assessment.
+For known IDs, this monitor reuses accepted content and does not reopen post pages.
 Missing overlap, incomplete posts, login errors, and acquisition limits degrade the scan.
 X search can omit unindexed or deleted posts. This browser source cannot guarantee exhaustive coverage.
 Videos are not transcribed. Image assessment requires accessible X image URLs.
 
 Keep the machine and BrowserOS Neo running. Keep the X session, Codex login, and email account authenticated.
 Run `sss validate`, `sss test`, and `sss doctor` before you enable the recipe.
+When only the X assessment trigger becomes stricter, SSS inherits acquisition history without copying old judgments or creating alerts.
 
 ## Service
 

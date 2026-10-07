@@ -15,6 +15,7 @@ assertions:
 rules:
   - id: reset-hint
     type: llm_assessment
+    trigger: new_item
     bootstrap: suppress_existing
     model: gpt-6.1-sol
     reasoningEffort: xhigh

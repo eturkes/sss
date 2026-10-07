@@ -178,7 +178,35 @@ export class Store {
     }
   }
 
-  syncMonitor(config: { id: string; name: string; enabled: boolean }, configJson: string, namespace: string, nextDueAt: string): void {
+  syncMonitor(
+    config: { id: string; name: string; enabled: boolean }, configJson: string, namespace: string, nextDueAt: string,
+    acquisitionFrom?: { namespace: string; configJson: string },
+  ): void {
+    if (acquisitionFrom) {
+      this.transaction(() => {
+        const previous = this.monitor(config.id);
+        if (previous?.namespace !== acquisitionFrom.namespace || previous.configJson !== acquisitionFrom.configJson) {
+          throw new LeaseLostError(`configuration ${config.id}`);
+        }
+        if (this.db.prepare("SELECT 1 FROM runs WHERE monitor_id=? AND status='running'").get(config.id)) {
+          throw new Error(`monitor ${config.id} has an active scan; retry the policy transition after it finishes`);
+        }
+        this.syncMonitor(config, configJson, namespace, nextDueAt);
+        if (namespace === acquisitionFrom.namespace || this.initialized(config.id, namespace) || !this.initialized(config.id, acquisitionFrom.namespace)) return;
+        if (this.db.prepare("SELECT 1 FROM items WHERE monitor_id=? AND namespace=?").get(config.id, namespace) ||
+            this.db.prepare("SELECT 1 FROM rule_state WHERE monitor_id=? AND namespace=?").get(config.id, namespace)) {
+          throw new Error(`acquisition target ${config.id}/${namespace} must be empty`);
+        }
+        // Identical acquisition semantics permit raw history reuse; judgments always stay in their original namespace.
+        this.db.prepare(`INSERT INTO items(monitor_id,namespace,item_key,content_hash,data_json,title,url,first_seen_at,last_seen_at,active)
+          SELECT monitor_id,?,item_key,content_hash,data_json,title,url,first_seen_at,last_seen_at,active
+          FROM items WHERE monitor_id=? AND namespace=?`).run(namespace, config.id, acquisitionFrom.namespace);
+        this.db.prepare(`UPDATE namespaces SET initialized=1,accepted_at=(
+          SELECT accepted_at FROM namespaces WHERE monitor_id=? AND namespace=?
+        ) WHERE monitor_id=? AND namespace=?`).run(config.id, acquisitionFrom.namespace, config.id, namespace);
+      });
+      return;
+    }
     const now = new Date().toISOString();
     const existing = this.db.prepare("SELECT config_json,namespace,next_due_at FROM monitors WHERE id=?").get(config.id) as Record<string, SqlValue> | undefined;
     const configUnchanged = existing?.["config_json"] === configJson;

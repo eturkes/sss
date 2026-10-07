@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import type { Monitor } from "../config/schema.ts";
 import { loadMonitorById, loadMonitorFiles, loadMonitorFile } from "../config/load.ts";
-import { semanticMonitorHash } from "../config/schema.ts";
+import { monitorSchema, semanticMonitorHash } from "../config/schema.ts";
 import { ScannerEngine, type Collector, type RunResult } from "../core/engine.ts";
 import { drainOutbox } from "../notifications/outbox.ts";
 import { nextOccurrence } from "../scheduler/schedule.ts";
@@ -46,7 +46,7 @@ export class Runtime {
     for (const { config } of loaded) {
       ids.push(config.id);
       const namespace = semanticMonitorHash(config);
-      this.store.syncMonitor(config, JSON.stringify(config), namespace, this.now().toISOString());
+      this.syncMonitor(config, namespace, this.now().toISOString());
     }
     this.store.disableMissing(ids);
     return loaded.map(({ config }) => config);
@@ -57,7 +57,7 @@ export class Runtime {
     const namespace = semanticMonitorHash(config);
     if (dryRun) return this.engine.run(config, namespace, { dryRun: true });
     const now = this.now();
-    this.store.syncMonitor(config, JSON.stringify(config), namespace, now.toISOString());
+    this.syncMonitor(config, namespace, now.toISOString());
     const claim = this.store.claimMonitor(config.id, now.toISOString(), new Date(now.getTime() + MONITOR_LEASE_MS).toISOString());
     if (!claim) return { status: "skipped", items: [], events: [], error: "monitor is already claimed", dryRun: false };
     let result: RunResult;
@@ -98,10 +98,34 @@ export class Runtime {
 
   close(): void { this.store.close(); }
 
+  private syncMonitor(config: Monitor, namespace: string, nextDueAt: string): void {
+    const previous = this.store.monitor(config.id);
+    const acquisitionFrom = previous && strictlyNarrowsAssessment(previous.configJson, previous.namespace, config) ? previous : undefined;
+    this.store.syncMonitor(config, JSON.stringify(config), namespace, nextDueAt, acquisitionFrom);
+  }
+
   private async resolveMonitor(idOrPath: string): Promise<Monitor> {
     if (/\.ya?ml$/i.test(idOrPath) || idOrPath.includes("/")) return loadMonitorFile(resolve(idOrPath));
     return loadMonitorById(this.monitorsDir, idOrPath);
   }
+}
+
+function strictlyNarrowsAssessment(configJson: string, namespace: string, next: Monitor): boolean {
+  try {
+    const previous = monitorSchema.parse(JSON.parse(configJson) as unknown);
+    if (previous.source.type !== "x" || next.source.type !== "x" || previous.enabled !== next.enabled ||
+        semanticMonitorHash(previous) !== namespace ||
+        next.rules.some(rule => rule.type !== "llm_assessment" || rule.trigger !== "new_item")) return false;
+    const oldRules = new Map(previous.rules.map(rule => [rule.id, rule]));
+    let narrowed = false;
+    const rules = next.rules.map(rule => {
+      const old = oldRules.get(rule.id);
+      if (old?.type !== "llm_assessment" || rule.type !== "llm_assessment") return rule;
+      if (old.trigger !== "new_item") narrowed = true;
+      return { ...rule, trigger: old.trigger ?? "new_or_changed" };
+    });
+    return narrowed && semanticMonitorHash({ ...next, rules }) === semanticMonitorHash(previous);
+  } catch { return false; }
 }
 
 function safeRuntimeError(error: unknown): string {

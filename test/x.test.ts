@@ -189,3 +189,25 @@ test("X refreshes frozen quote context when quoted content changes without an au
   assert.match(String(next.data.quotedContext), /Reset announced/);
   assert.notDeepEqual(next.data, first.data);
 });
+
+test("X strict-new polling verifies known IDs without rereading their posts", async () => {
+  const id = "2107700139066593612";
+  const known = { id: `x:${id}`, url: url(id), data: { author: "thsottiaux", postId: id, text: "Accepted original text\n👀", url: url(id), context: "Saved reply context" } };
+  const f = fixture([[id]], { [id]: article(id, "An edit that strict-new must ignore") });
+  const result = await collectX(source, f.dependencies, { previousItems: [known], bootstrapItemIds: [known.id], newItemsOnly: true });
+  assert.deepEqual(result.items, [known]);
+  assert.equal(f.calls.filter(call => call.name === "tabs" && call.arguments?.["action"] === "new" && String(call.arguments?.["url"]).includes("/status/")).length, 0);
+  assert.ok(f.calls.some(call => call.name === "read" && String(call.arguments?.["selector"]).endsWith('[data-testid="User-Name"]')));
+});
+
+test("X strict-new polling reads full content only for unseen authored IDs", async () => {
+  const newest = "2107700139066593612", old = "2107676900894417277";
+  const known = { id: `x:${old}`, data: { author: "thsottiaux", postId: old, text: "Saved text", url: url(old) } };
+  const f = fixture([[newest, old]]);
+  const result = await collectX(source, f.dependencies, { previousItems: [known], bootstrapItemIds: [known.id], newItemsOnly: true });
+  assert.deepEqual(result.items.map(item => item.id), [`x:${newest}`, `x:${old}`]);
+  const detailURLs = f.calls.filter(call => call.name === "tabs" && call.arguments?.["action"] === "new" && String(call.arguments?.["url"]).includes("/status/")).map(call => call.arguments?.["url"]);
+  assert.deepEqual(detailURLs, [url(newest)]);
+  assert.ok(result.items[0]?.data.text);
+  assert.deepEqual(result.items[1], known);
+});
