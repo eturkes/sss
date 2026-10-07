@@ -98,8 +98,7 @@ async function main(command: string, args: string[]): Promise<void> {
           server.once("listening", ready);
           server.once("error", failed);
         });
-        process.stdout.write(`SSS dashboard · http://127.0.0.1:${port}\n`);
-      } else process.stdout.write("SSS scheduler running\n");
+      }
       let activeTick: Promise<void> | undefined;
       const tick = (): Promise<void> => {
         if (activeTick) return activeTick;
@@ -117,6 +116,7 @@ async function main(command: string, args: string[]): Promise<void> {
         process.once("SIGINT", resolveStop);
         process.once("SIGTERM", resolveStop);
       });
+      process.stdout.write(command === "serve" ? `SSS dashboard · http://127.0.0.1:${port}\n` : "SSS scheduler running\n");
       let timer: NodeJS.Timeout | undefined;
       try {
         await tick();
