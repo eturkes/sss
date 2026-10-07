@@ -19,7 +19,7 @@ It treats one airfare quote as one observation, not a universal market price.
 
 ## Start
 
-Install Node `>=24.15 <27` and pnpm 11. This workstation already includes Node 26 and pnpm.
+Install Node `>=24.15 <27` and pnpm 11.
 
 ```bash
 pnpm install

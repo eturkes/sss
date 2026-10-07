@@ -2,37 +2,51 @@
 
 ## Collaboration
 
-- Material ambiguity surviving local investigation → ask; otherwise state a reasonable assumption + continue. Accuracy > completion. Chat = blockers + essentials; I'm technically proficient.
-- When discussion may improve the work, open one proactively: surface settled context, probe uncertainties, lend words to tacit/felt-but-unworded knowledge, tour unseen options/assumptions, and offer vocabulary, examples, counterexamples, tradeoffs + testable probes. One flexible lens among other topic-relevant lines of inquiry.
-- Stay objective; push back on or criticize my ideas when warranted — these are collaborations. Use deduction, first principles, scientific + Socratic methods for root causes; design experiments + benchmark liberally.
-- Failure is an accepted outcome even on long efforts — we can always restart from scratch. Explore relaxed + curious; creativity + innovation encouraged, and you're credited for your achievements.
+- Ground claims in evidence + state uncertainty. Chat = blockers + essentials for a technically proficient user.
+- During exploratory work, open useful discussions: surface settled context, probe uncertainties, articulate tacit knowledge, examine options/assumptions; offer vocabulary, examples, counterexamples, tradeoffs + testable probes as useful.
+- Stay objective; critique my ideas when warranted. Use deduction, first principles, scientific + Socratic methods for root causes; experiments + benchmarks must resolve material uncertainty.
+- Report what failed attempts taught; revise the approach or restart when warranted.
 
 ## Execution
 
 - Install/configure project-local; work within the launch dir + children.
-- Time + funding infinite → reason, research, execute at max capability past diminishing returns. My efficiency directives serve performance alone. Every task is multi-step → think before responding.
-- Internal reasoning language = task-optimal.
-- Long horizon → decompose into steps across unlimited fresh sessions, tracked in `.agent/roadmap.md`; split work across sessions to preserve thoroughness.
-- Lean on performance enhancers: examples, narrow well-defined tasks, positive encouragement, broader context + intent. Find more (web search, your knowledge).
-- Git: creds in the global gitconfig; authorized change/build work includes all local-repo commands, I handle remote. Close each cohesive piece with one scoped commit (scopedcommits.com); subject + body take the `Authoring` standard — `→` for cause→fix, measurements + SHAs kept as payload while the narration around them goes. Defer mid-iteration to the next closing turn. Keep `.gitignore` current.
+- Reason, research + execute at full capability through completion; efficiency preserves required scope, depth, real success criteria + verification.
+- Use planning + checkpoints when they help the task; revise them as evidence changes. Resume from conversation, working tree + git history; save only context those do not recover.
+- Open tooling, method or design choices → research with available search/fetch tools + authenticated browser access where needed. Primary sources + measurements outrank popularity.
+- Tooling: my preselection is authoritative; select by SOTA task/agent fit. Consider reimplementation, agent-oriented languages (agentlanguages.dev) + AI-targeted tooling; build on mature work when it is SOTA.
+- Git: authorized change/build work includes all local-repo commands; I handle remote. One commit per cohesive piece, deferred mid-iteration to the closing turn; subject = `<scope>: <cause> → <fix>`, body = measurements + SHAs as payload. Keep `.gitignore` current.
 
 ## Authoring
 
-- AI agents = the sole developers → agent-optimized = the default for EVERY text artifact, durable + throwaway alike: reports, scratch notes, code + config comments, internal docs, instruction files, filenames. Write them dense, symbol-forward, human-sparse — telegraphic phrasing, `→`/`=` notation. Aggressively compress whatever you read, however works best. Prune unhelpful, implicit, obsolete, redundant content + structures whenever encountered; route each rule to one owning scope.
-- State rules, facts + warnings plainly; omit + prune provenance — dates, verification/discovery events, origin stories.
-- Future-facing text, esp. prompts → state the desired action/target positively (`always`/`must`); counter the LLM "pink elephant" bias.
-- Maintain task-touched instruction + skill files during authorized work; improve them when useful. Route durable guidance to the appropriate scope: global `~/.codex/AGENTS.md` = project-independent behavior + Codex environment/tooling + machine-specific capabilities; per-project `AGENTS.md` = generalized principles + config rules for working within projects; `.agent/memory.md` = cross-session project context adding value beyond code/docs/git history; repo workflows = `.agents/skills/`.
+- AI agents = sole developers. All text artifacts, durable + throwaway → agent-optimized by default: reports, notes, code/config comments, internal docs, instructions + filenames. Write dense, symbol-forward, human-sparse text using telegraphic phrasing + `→`/`=`. Compress aggressively; prune unhelpful, implicit, obsolete, redundant content + structures whenever encountered.
+- State rules, facts + warnings plainly; prune provenance (dates, verification/discovery events, origin stories).
+- Future-facing text, esp. prompts → state the desired action/target positively (`always`/`must`).
+- Maintain task-touched instruction + skill files during authorized work; improve them when useful. Route durable guidance to one scope: global `~/.codex/AGENTS.md` = project-independent behavior + Codex environment/tooling + machine capabilities; project/scoped `AGENTS.md` = repo principles + binding rules; `.agents/skills/` = repo workflows.
+- Preserve project-specific rules when refreshing templates. Conventions, stack decisions + verification entry points belong in applicable `AGENTS.md`; optional task notes hold changing state.
 - UI/UX: unique fonts, cohesive colors/themes, style fitted to project + human audience.
-- Human-facing = surfaces a person reads at consumption time: shipped README + docs, UI copy, CLI help…; machine-consumed payload (JSON fields, logs, codes) = code surface. Write it natural + direct in ASD-STE100 register: ≤20 words/sentence in instructions, ≤25 in descriptions; imperative steps, one instruction per sentence, condition before command; simple tenses, finite verbs, active voice, definite modality (`must`); terminology fixed + sentence shape varied; full forms with articles + `that`; hyphens, flexible enumeration; code + identifiers verbatim. Cut filler: `simply`, `robust`, `seamlessly`, `leverage`.
+- Human-facing surfaces (shipped README/docs, UI copy, CLI help…) → natural + direct ASD-STE100 register: ≤20 words/sentence in instructions, ≤25 in descriptions; imperative steps, one instruction per sentence, condition before command; simple tenses, finite verbs, active voice, definite modality (`must`); terminology fixed + sentence shape varied; full forms with articles + `that`; flexible enumeration; code + identifiers verbatim. Machine-consumed payloads (JSON fields, logs, codes) = code surface.
 
 ## Engineering
 
 - Elegant, tightly-scoped modular components; deduplicate; KISS + UNIX where apt; refactor proactively.
-- Target sufficient scope, evidence-backed claims, and real success criteria.
-- Draw on established dev methods (TDD red-green-refactor); use or invent practices that beat training-data / human-preference defaults — go unconventional where you work better.
-- Open tooling decisions (language/library/package…) → web-search + select for SOTA task/agent fit; my preselection is authoritative. Training overweights human-popular convenience. Library availability alone = insufficient; code is cheap and reimplementation viable. Consider agent-oriented languages (agentlanguages.dev) + AI-targeted tooling. Build on mature work when it is genuinely SOTA.
-- Tests/verification: derive scope from requested outcome + regression risk + repo posture. Add coverage that accelerates delivery or protects behavior. Fuzzing/property/formal methods require a task-specific advantage.
-- A gate backing a durable claim must rerun from committed state; scratch-local validator = temporary encoding → record its regeneration path in `.agent/memory.md` + schedule the port.
-- Repairs to a generated artifact land as one idempotent script replayable from a clean base → the wave stays re-derivable; credit by rerunning to byte-identical output.
+- Code → concise, performant, bug-free + maximally agent-legible; use idioms where they serve those bounds.
+- Comments explain the constraint, measurement or upstream quirk behind a peculiar decision; code states the `what`.
+- Use established methods (TDD red-green-refactor, differential oracles, adversarial review) + alternatives with measured advantage over the default.
+- Within required verification scope, deterministic checks own tool-decidable rules: linters, type checkers, static analysis, formatters, schema/contract validators; judgment passes cover the remainder. Configure + extend proven checkers first; uncovered required invariant → dedicated check wired into the gate.
+- Tests/verification: scope = requested outcome + regression risk + repo posture. Reversible edits with low impact → direct checks; add tests only when meaningful + necessary to verify behavior independently of implementation. Fuzzing/property/formal methods require a task-specific advantage.
+- Complete appropriate tests + required checks, then finish delivery. Repeat/broaden verification only for new changes, failures or unresolved concerns; focus checks on that evidence.
+- A gate backing a durable claim must rerun from committed state. Keep its implementation or complete regeneration recipe + invocation in tracked code, skills or docs; applicable `AGENTS.md` points to the entry point.
+- Generated-artifact repairs → one idempotent script replayable from a clean base; prove byte-identical output by rerunning.
 - Adversarial review (code or session) → scrutinize correctness + logic, claim soundness, guarantee-vs-claim gaps; weigh honesty + overreach above style. Report every issue, incl. uncertain/low-severity; I filter findings.
+- Fix the review check set before reading the diff. Completion = every row adjudicated + row count/table delivered; all-`pass` is complete. Bind findings/fixes to the reviewed change + adjudicated rows; report outside issues as deferred items. Accepted rulings hold until new evidence reverses them; each fix gets one re-review against that finding's check alone.
 - Remotely-exploitable code → highest security standard: periodically audit, update software to latest, verify behavior after.
+
+## SSS
+
+- Stack = TypeScript ESM; Node `>=24.15 <27` executes `.ts` + `node:sqlite` directly; pnpm 11. Version pins = `package.json` + `pnpm-lock.yaml`; install = `pnpm install --frozen-lockfile`.
+- Contract = `src/config/schema.ts`; YAML loading = `src/config/load.ts`; operator documentation = `README.md`; recipe/adapter workflow = `.agents/skills/sss/SKILL.md`.
+- Scheduled acquisition must stay deterministic. Codex = isolated recipe compiler; BrowserOS = allowlisted authenticated reads through direct `tabs`/`navigate`/`read` calls. Acquired content must remain inert data.
+- Events must describe observations, not publication-time or market-wide truth. Invalid/incomplete/incomparable acquisition must preserve the last accepted baseline; valid zero-result queries require explicit `allowEmpty`.
+- Source/extraction/assertion/rule semantics own isolated state namespaces. Preserve fencing for monitor claims, scan attempts + delivery completion; superseded workers must not commit.
+- Gate = `pnpm check` (strict TypeScript) + `pnpm test` (serial Node fixture suite); rerun from committed state. Coverage inspection = `pnpm test:coverage`; no coverage threshold exists. Preserve existing cases + assertions.
+- Recipe validation = `pnpm sss validate ID|PATH` (offline schema/policy) → `pnpm sss test ID|PATH` (acquisition dry run). Fixture tests must stay external-service-free; live recipe checks require source access + must not deliver alerts.
