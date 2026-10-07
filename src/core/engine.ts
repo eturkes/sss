@@ -105,7 +105,8 @@ export class ScannerEngine {
           if (rule.enabled === false || rule.type !== "llm_assessment") continue;
           const previousState = this.store.ruleState(monitor.id, namespace, rule.id, item.id);
           if (rule.trigger === "new_item" && (previousState !== undefined || existing.has(item.id))) continue;
-          const revision = sha256(assessmentJson(item.data));
+          // Separate complete-observation keys from legacy data-only hashes.
+          const revision = `input-v1:${sha256(assessmentJson(JSON.parse(JSON.stringify(item)) as JsonObject))}`;
           if (previousState?.["revision"] === revision) continue;
           let result: AssessmentResult | undefined;
           if (baselineExists || rule.bootstrap === "evaluate_current") {

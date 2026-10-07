@@ -107,8 +107,12 @@ It cannot click, fill forms, download, evaluate JavaScript, or access app connec
 
 An assessment rule includes a trusted `prompt` rubric. Acquired text and conversations remain inert evidence.
 SSS stores positive and negative judgments. By default, it reassesses changed posts but skips unchanged posts.
+The revision key covers the complete observation JSON, including its title, URL, publication time, and extracted data.
+Object key order and acquisition time do not trigger reassessment.
 Set `trigger: new_item` to assess each accepted identity once. Edits, quote changes, and returning identities do not trigger inference.
 An unaccepted post can retry after an assessment failure.
+Old data-only cache entries refresh once in revision mode. A positive refresh can repeat an earlier alert.
+The strict-new mode still skips accepted IDs before checking the revision key.
 An assessment failure preserves the accepted baseline. The result describes a model interpretation, not a confirmed future event.
 
 By default, `bootstrap: suppress_existing` suppresses alerts during the first accepted scan.
