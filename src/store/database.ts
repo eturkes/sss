@@ -264,6 +264,12 @@ export class Store {
     if (!row) throw new LeaseLostError(`monitor ${monitorId}`);
   }
 
+  renewMonitorLease(monitorId: string, token: string, now: string, leaseUntil: string): void {
+    const renewed = this.db.prepare("UPDATE monitors SET lease_until=? WHERE id=? AND lease_token=? AND lease_until>=?")
+      .run(leaseUntil, monitorId, token, now);
+    if (renewed.changes !== 1) throw new LeaseLostError(`monitor ${monitorId}`);
+  }
+
   abandonRun(runId: string, token: string, at: string, error: string): boolean {
     return this.db.prepare("UPDATE runs SET ended_at=?,status='degraded',error=? WHERE id=? AND attempt_token=? AND status='running'")
       .run(at, error, runId, token).changes === 1;
@@ -298,6 +304,12 @@ export class Store {
     const rows = this.db.prepare("SELECT item_key,content_hash,data_json,title,url FROM items WHERE monitor_id=? AND namespace=?")
       .all(monitorId, namespace) as unknown as ExistingItem[];
     return new Map(rows.map((row) => [row.item_key, row]));
+  }
+
+  bootstrapItemIds(monitorId: string, namespace: string): string[] {
+    return this.db.prepare(`SELECT item_key FROM items WHERE monitor_id=? AND namespace=?
+      AND first_seen_at=(SELECT MIN(first_seen_at) FROM items WHERE monitor_id=? AND namespace=?) ORDER BY item_key`)
+      .all(monitorId, namespace, monitorId, namespace).map((row) => String(row["item_key"]));
   }
 
   ruleState(monitorId: string, namespace: string, ruleId: string, itemId: string): JsonObject | undefined {

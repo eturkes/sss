@@ -15,6 +15,9 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=%h/Projects/sss/.sss
+ReadWritePaths=%h/Projects/sss/monitors
+ReadWritePaths=-%h/.codex
+ReadWritePaths=-%h/.config/claude-mail
 Environment=NODE_ENV=production
 EnvironmentFile=-%h/.config/sss.env
 

@@ -13,7 +13,8 @@ import { loadMonitorById, loadMonitorFile, loadMonitorFiles } from "./config/loa
 import { semanticMonitorHash } from "./config/schema.ts";
 import type { Monitor } from "./config/schema.ts";
 import { safeErrorMessage, stripControlText } from "./security/text.ts";
-import { BROWSEROS_MCP_ENDPOINT } from "./sources/browseros.ts";
+import { createBrowserOsClient, createBrowserOsNeoClient, verifyTools } from "./sources/browseros.ts";
+import { safeFetch } from "./security/network.ts";
 import { createApp } from "./web/app.ts";
 
 const [command = "help", ...args] = process.argv.slice(2);
@@ -181,11 +182,12 @@ async function doctor(runtime: Runtime): Promise<void> {
   const requiredEnv = environmentRequirements(monitors);
   const missingEnv = [...requiredEnv].filter((name) => !process.env[name]);
   checks.push(["secrets", missingEnv.length === 0, missingEnv.length ? `missing ${missingEnv.join(", ")}` : `${requiredEnv.size} required variable(s) ready`]);
-  if (monitors.some((monitor) => monitor.source.type === "browseros")) {
+  if (monitors.some((monitor) => ["browseros", "x"].includes(monitor.source.type))) {
     try {
-      const response = await fetch(BROWSEROS_MCP_ENDPOINT, { method: "GET", signal: AbortSignal.timeout(2_000), headers: { accept: "text/event-stream" } });
-      await response.body?.cancel();
-      checks.push(["BrowserOS", response.ok, `HTTP ${response.status}`]);
+      const client = await (monitors.some(monitor => monitor.source.type === "x") ? createBrowserOsNeoClient : createBrowserOsClient)(safeFetch);
+      try { await verifyTools(client); }
+      finally { await client.close(); }
+      checks.push(["BrowserOS", true, "Neo read-only MCP ready"]);
     } catch (error) { checks.push(["BrowserOS", false, safeErrorMessage(error)]); }
   } else checks.push(["BrowserOS", true, "unused"]);
   const delivery = runtime.store.deliveryHealth();
@@ -206,7 +208,7 @@ function environmentRequirements(monitors: Monitor[]): Set<string> {
   for (const monitor of monitors) {
     visit(monitor);
     if (monitor.source.type === "openalex") names.add("OPENALEX_API_KEY");
-    if (monitor.source.type === "browseros") names.add("SSS_BROWSEROS_ORIGINS");
+    if (["browseros", "x"].includes(monitor.source.type)) names.add("SSS_BROWSEROS_ORIGINS");
   }
   return names;
 }

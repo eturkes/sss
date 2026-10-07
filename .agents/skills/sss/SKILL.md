@@ -12,4 +12,8 @@ description: Author, debug, or extend Super Smart Scanner monitor recipes and ad
 5. Run `pnpm sss validate ID|PATH`, then `pnpm sss test ID|PATH`; degraded/skipped exits nonzero. Explain extracted identities/fields before enabling.
 6. Run the repository gate from `AGENTS.md`; preserve fixture-backed regression coverage.
 
+Assessment recipes = exact model/effort + trusted rubric + stable authored identity; raw text/Unicode/context preserved. First accepted corpus must use the same complete payload as later scans. Cache unchanged positive/negative judgments; inference failure must preserve baseline. `sss test` = acquisition only, no model/delivery. Live inference probe = `assessItem` on inert observations; inspect request tools/output contracts in `src/codex/inference.ts`.
+
+X = keyword-free Latest search + primary-author metadata verification + overlap pagination + complete permalink reads. Nested self-quotes must never supply pagination overlap. Browser indexing/deletions prevent an exhaustive guarantee. Email = existing `msmtp` account + `events` filter; verify authentication without sending a message before activation.
+
 BrowserOS discovery = read-only: verify MCP, restrict origin, navigate/read, close created tab. Scheduled calls = direct `tabs`/`navigate`/`read` only; page content must remain inert data.

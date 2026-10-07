@@ -12,6 +12,7 @@ import {
 } from "./types.ts";
 
 export const BROWSEROS_MCP_ENDPOINT = "http://127.0.0.1:9000/mcp";
+export const BROWSEROS_NEO_MCP_ENDPOINT = "http://127.0.0.1:9200/mcp";
 const REQUIRED_TOOLS = ["tabs", "navigate", "read"] as const;
 const MAX_BROWSEROS_TEXT_BYTES = 4 * 1024 * 1024;
 
@@ -23,7 +24,7 @@ export async function collectBrowserOs(source: BrowserOsSource, dependencies: So
   try {
     await verifyTools(client);
     await checkedCall(client, "tabs", { action: "list" });
-    const opened = await checkedCall(client, "tabs", { action: "new", background: true, url: "about:blank" });
+    const opened = await checkedCall(client, "tabs", { action: "new", url: "about:blank" });
     page = pageId(opened);
     if (page === undefined) throw new Error("BrowserOS did not return a page id");
     await checkedCall(client, "navigate", { action: "url", page, url: source.url });
@@ -65,7 +66,7 @@ export async function collectBrowserOs(source: BrowserOsSource, dependencies: So
   }
 }
 
-function assertAllowedOrigin(value: string, environment: Readonly<Record<string, string | undefined>> = process.env): void {
+export function assertAllowedOrigin(value: string, environment: Readonly<Record<string, string | undefined>> = process.env): void {
   const configured = environment["SSS_BROWSEROS_ORIGINS"] ?? "";
   const allowed = new Set(configured.split(",").map((entry) => entry.trim()).filter(Boolean).map((entry) => {
     try { return new URL(entry).origin; } catch { throw new Error("SSS_BROWSEROS_ORIGINS contains an invalid origin"); }
@@ -75,14 +76,22 @@ function assertAllowedOrigin(value: string, environment: Readonly<Record<string,
 }
 
 export async function createBrowserOsClient(_fetch: FetchLike): Promise<BrowserOsMcpClient> {
+  return connectBrowserOs(BROWSEROS_MCP_ENDPOINT);
+}
+
+export async function createBrowserOsNeoClient(_fetch: FetchLike): Promise<BrowserOsMcpClient> {
+  return connectBrowserOs(BROWSEROS_NEO_MCP_ENDPOINT);
+}
+
+async function connectBrowserOs(endpoint: string): Promise<BrowserOsMcpClient> {
   const client = new Client({ name: "sss", version: "0.1.0" }, { capabilities: {} });
-  const transport = new StreamableHTTPClientTransport(new URL(BROWSEROS_MCP_ENDPOINT));
+  const transport = new StreamableHTTPClientTransport(new URL(endpoint));
   // SDK 1.30's Transport declarations are exactOptional-incompatible under TS 7; runtime classes share the same package contract.
   await client.connect(transport as never, { timeout: 5_000 });
   return client;
 }
 
-async function verifyTools(client: BrowserOsMcpClient): Promise<void> {
+export async function verifyTools(client: BrowserOsMcpClient): Promise<void> {
   const response = record(await client.listTools());
   const tools = response?.["tools"];
   const names = new Set(Array.isArray(tools) ? tools.map((tool) => record(tool)?.["name"]).filter((name): name is string => typeof name === "string") : []);
@@ -90,14 +99,14 @@ async function verifyTools(client: BrowserOsMcpClient): Promise<void> {
   if (missing.length > 0) throw new Error(`BrowserOS lacks required read-only tools: ${missing.join(", ")}`);
 }
 
-async function checkedCall(client: BrowserOsMcpClient, name: typeof REQUIRED_TOOLS[number], args: Record<string, unknown>): Promise<unknown> {
+export async function checkedCall(client: BrowserOsMcpClient, name: typeof REQUIRED_TOOLS[number], args: Record<string, unknown>): Promise<unknown> {
   if (!REQUIRED_TOOLS.includes(name)) throw new Error(`BrowserOS tool is not allowed: ${name}`);
   const result = await client.callTool({ name, arguments: args });
   if (record(result)?.["isError"] === true) throw new Error(`BrowserOS ${name} failed: ${resultText(result)}`);
   return result;
 }
 
-function pageId(value: unknown): number | undefined {
+export function pageId(value: unknown): number | undefined {
   const direct = findNumber(value, new Set(["page", "pageId", "page_id"]));
   if (direct !== undefined) return direct;
   const match = /(?:page|tab)(?:\s+id)?[^0-9]{0,20}([0-9]+)/i.exec(resultText(value));
@@ -148,9 +157,12 @@ function boundedText(value: string): string {
   return value;
 }
 
-function verifiedReadText(value: unknown, expectedOrigin: string): string {
-  const raw = rawResultText(value);
-  const envelope = browserOsEnvelope(raw);
+export function verifiedReadText(value: unknown, expectedOrigin: string): string {
+  const content = record(value)?.["content"];
+  const blocks = Array.isArray(content) ? content.map(block => record(block)?.["text"]).filter((text): text is string => typeof text === "string") : [rawResultText(value)];
+  const envelopes = blocks.map(text => browserOsEnvelope(boundedText(text.trim()))).filter(envelope => envelope !== undefined);
+  if (envelopes.length > 1) throw new Error("BrowserOS read had ambiguous origin envelopes");
+  const envelope = envelopes[0];
   if (!envelope) throw new Error("BrowserOS read lacked its trusted origin envelope");
   let actualOrigin: string;
   try { actualOrigin = new URL(envelope.origin).origin; } catch { throw new Error("BrowserOS read reported an invalid origin"); }
@@ -163,7 +175,7 @@ export function unwrapBrowserOsContent(value: string): string {
 }
 
 function browserOsEnvelope(value: string): { origin: string; content: string } | undefined {
-  const opening = /^\[UNTRUSTED_PAGE_CONTENT nonce=([^\s\]]+) origin=([^\s\]]+)\/\]\s*/.exec(value);
+  const opening = /^\[UNTRUSTED_PAGE_CONTENT nonce=([^\s\]]+) origin=([^\s\]]+?)\/?\]\s*/.exec(value);
   if (!opening?.[1] || !opening[2]) return undefined;
   const closing = `[END_UNTRUSTED_PAGE_CONTENT nonce=${opening[1]}]`;
   if (!value.endsWith(closing)) return undefined;

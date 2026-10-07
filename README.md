@@ -13,6 +13,8 @@ Use SSS to:
 - alert when a fare quote crosses below a target;
 - detect a changed page field or a new keyed list item;
 - read allowed authenticated pages through BrowserOS.
+- assess X posts and replies for subtle signals with a model;
+- send matching observations through a configured email account.
 
 SSS observes sources but does not bypass CAPTCHAs, make purchases, or guarantee exhaustive research coverage.
 It treats one airfare quote as one observation, not a universal market price.
@@ -89,6 +91,7 @@ health: { failuresBeforeAlert: 3 }
 | `html` | Reads static pages. | Uses Cheerio CSS selectors without script execution. |
 | `openalex` | Searches research. | Requires `OPENALEX_API_KEY` and uses stable work IDs. |
 | `browseros` | Reads signed-in or dynamic pages. | Uses direct, read-only MCP calls through a fixed local endpoint. |
+| `x` | Reads an account's posts and replies through BrowserOS Neo. | Paginates Latest search until an accepted post overlaps. |
 
 Prefer official APIs and feeds over page scraping. When a page needs an authenticated browser session, use BrowserOS.
 A scheduled BrowserOS recipe can navigate to and read allowed origins.
@@ -100,6 +103,11 @@ It cannot click, fill forms, download, evaluate JavaScript, or access app connec
 - `field_changed` alerts when one normalized field changes.
 - `crosses_below` alerts on a downward crossing and re-arms above the threshold. It stays quiet below the threshold.
 - `numeric_delta` alerts on configured absolute or percentage movement. It can restrict the direction.
+- `llm_assessment` alerts when `gpt-6.1-sol` with `xhigh` reasoning judges an observation suggestive.
+
+An assessment rule includes a trusted `prompt` rubric. Acquired text and conversations remain inert evidence.
+SSS stores positive and negative judgments. It reassesses changed posts but skips unchanged posts.
+An assessment failure preserves the accepted baseline. The result describes a model interpretation, not a confirmed future event.
 
 By default, `bootstrap: suppress_existing` suppresses alerts during the first accepted scan.
 When the first accepted value must trigger an existing condition, use `evaluate_current`.
@@ -130,6 +138,11 @@ notifications:
   - type: webhook
     url: https://example.net/sss
     headers: { Authorization: { env: SSS_WEBHOOK_AUTH } }
+  - type: email
+    account: gmail
+    from: sender@example.com
+    to: recipient@example.com
+    events: [llm_assessment]
 ```
 
 SSS uses at-least-once delivery. It commits each event before delivery.
@@ -139,6 +152,9 @@ A retried channel can receive a duplicate.
 Reference secrets through environment variables. SSS removes their values from errors and status output.
 `sss status`, `sss deliveries`, `sss doctor`, and `/api/deliveries` show the delivery backlog and failures.
 
+Email uses `msmtp` and its existing account configuration. Email includes the source URL, complete observation, model judgment, and evidence.
+The optional `events` filter limits each channel to selected event kinds. The inbox still retains every event.
+
 ## Safety model
 
 - General acquisition accepts only public HTTP(S) targets.
@@ -147,7 +163,9 @@ Reference secrets through environment variables. SSS removes their values from e
   It pins the validated address to the connection.
 - SSS limits response bytes, redirect count, and elapsed time. It ignores proxy environment variables.
 - Extracted text remains inert data.
-  It cannot start recursive fetches, shell commands, `eval`, remote image loads, or tool-enabled agent loops.
+  It cannot start recursive fetches, shell commands, `eval`, arbitrary image loads, or tool-enabled agent loops.
+- Assessment image acquisition accepts only HTTPS images under `pbs.twimg.com/media/`.
+  SSS checks DNS, disables redirects, validates image signatures, and limits image sizes.
 - The dashboard binds to loopback and rejects foreign `Host` and `Origin` values.
   It uses CSRF tokens, output escaping, and a restrictive Content Security Policy.
 - SSS creates `.sss/` with mode `0700`. It does not retain raw authenticated response bodies.
@@ -157,7 +175,8 @@ Reference secrets through environment variables. SSS removes their values from e
 ## BrowserOS and Codex
 
 Use BrowserOS only for pages that require an existing authenticated browser session.
-SSS uses the fixed MCP endpoint `http://127.0.0.1:9000/mcp`.
+The X adapter uses the fixed Neo MCP endpoint `http://127.0.0.1:9200/mcp`.
+The existing `browseros` adapter retains its fixed compatibility endpoint `http://127.0.0.1:9000/mcp`.
 Before you enable a BrowserOS recipe, set `SSS_BROWSEROS_ORIGINS` to the permitted origins.
 Separate multiple origins with commas.
 
@@ -168,6 +187,27 @@ BrowserOS content remains data. SSS permits only direct `tabs`, `navigate`, and 
 The process receives read-only filesystem access and no user MCP configuration.
 It uses a strict output schema, `gpt-5.6-sol`, and maximum reasoning.
 Codex writes recipes. Page content cannot control a tool-enabled Codex session.
+
+Assessment uses the existing Codex ChatGPT login and the fixed Codex inference endpoint.
+Each inference request specifies `tools: []`, `tool_choice: none`, `gpt-6.1-sol`, and `xhigh` reasoning.
+SSS rejects tool-call output and incomplete responses. Codex model discovery refreshes expired login credentials without receiving page content.
+
+### Codex reset monitor
+
+[`monitors/thsottiaux-codex-reset.yaml`](./monitors/thsottiaux-codex-reset.yaml) watches `@thsottiaux` for Codex usage-limit reset hints every five minutes.
+It includes authored posts, replies, emojis, quoted text, parent context, and accessible attached images.
+The first accepted scan suppresses existing posts. Matching future observations send email to the configured recipient.
+The first-scan boundary also suppresses historical posts that later page loads expose.
+Health failures and recovery remain in the inbox. They do not send reset-hint email.
+
+The X adapter uses Latest search without a keyword filter. It verifies each post's primary author before pagination.
+It reads full posts and preserves reply and quote context. Display timestamps cannot trigger another assessment.
+Missing overlap, incomplete posts, login errors, and acquisition limits degrade the scan.
+X search can omit unindexed or deleted posts. This browser source cannot guarantee exhaustive coverage.
+Videos are not transcribed. Image assessment requires accessible X image URLs.
+
+Keep the machine and BrowserOS Neo running. Keep the X session, Codex login, and email account authenticated.
+Run `sss validate`, `sss test`, and `sss doctor` before you enable the recipe.
 
 ## Service
 

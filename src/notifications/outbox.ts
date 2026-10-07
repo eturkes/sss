@@ -4,6 +4,7 @@ import { formatMinorUnits } from "../core/money.ts";
 import { Store } from "../store/database.ts";
 import { safeRequest } from "../security/network.ts";
 import { safeErrorMessage, stripControlText } from "../security/text.ts";
+import { sendEmail } from "./email.ts";
 
 type Notification = {
   type: string;
@@ -28,6 +29,10 @@ export function formatAlert(event: ChangeEvent): { title: string; body: string }
 export async function deliver(event: ChangeEvent, channel: string, rawConfig: string): Promise<void> {
   const config = JSON.parse(rawConfig) as Notification;
   const kind = channel.split(":", 1)[0];
+  if (kind === "email") {
+    await sendEmail(event, config);
+    return;
+  }
   const message = formatAlert(event);
   if (kind === "desktop") {
     await spawnChecked("notify-send", ["--app-name=Super Smart Scanner", "--urgency=normal", escapeMarkup(message.title), escapeMarkup(message.body)]);

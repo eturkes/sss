@@ -18,7 +18,7 @@ export type Collection = {
 
 export type RunStatus = "running" | "ok_changed" | "ok_unchanged" | "degraded";
 
-export type EventKind = "new_item" | "field_changed" | "crosses_below" | "numeric_delta" | "health_degraded" | "health_recovered";
+export type EventKind = "new_item" | "field_changed" | "crosses_below" | "numeric_delta" | "llm_assessment" | "health_degraded" | "health_recovered";
 
 export type ChangeEvent = {
   id: string;

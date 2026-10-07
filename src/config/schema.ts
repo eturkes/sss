@@ -300,6 +300,11 @@ export const sourceSchema = z.discriminatedUnion("type", [
   htmlSourceSchema,
   openAlexSourceSchema,
   browserOsSourceSchema,
+  z.object({
+    type: z.literal("x"),
+    handle: z.string().regex(/^[A-Za-z0-9_]{1,15}$/),
+    maxPages: z.number().int().min(1).max(100).default(30),
+  }).strict(),
 ]);
 
 export type FeedSource = z.infer<typeof feedSourceSchema>;
@@ -308,6 +313,7 @@ export type HtmlSource = z.infer<typeof htmlSourceSchema>;
 export type OpenAlexSource = z.infer<typeof openAlexSourceSchema>;
 export type BrowserOsSource = z.infer<typeof browserOsSourceSchema>;
 export type Source = z.infer<typeof sourceSchema>;
+export type XSource = Extract<Source, { type: "x" }>;
 export type SourceConfig = Source;
 
 export const assertionsSchema = z
@@ -403,23 +409,34 @@ export const numericDeltaRuleSchema = z
     path: ["absolute"],
   });
 
+export const assessmentRuleSchema = z.object({
+  ...ruleBaseShape,
+  type: z.literal("llm_assessment"),
+  model: z.literal("gpt-6.1-sol"),
+  reasoningEffort: z.literal("xhigh"),
+  prompt: z.string().trim().min(1).max(10_000),
+}).strict();
+
 export const ruleSchema = z.discriminatedUnion("type", [
   newItemsRuleSchema,
   fieldChangedRuleSchema,
   crossesBelowRuleSchema,
   numericDeltaRuleSchema,
+  assessmentRuleSchema,
 ]);
 
 export type NewItemsRule = z.infer<typeof newItemsRuleSchema>;
 export type FieldChangedRule = z.infer<typeof fieldChangedRuleSchema>;
 export type CrossesBelowRule = z.infer<typeof crossesBelowRuleSchema>;
 export type NumericDeltaRule = z.infer<typeof numericDeltaRuleSchema>;
+export type AssessmentRule = z.infer<typeof assessmentRuleSchema>;
 export type Rule = z.infer<typeof ruleSchema>;
 export type RuleConfig = Rule;
 
 const notificationBaseShape = {
   id: idSchema.optional(),
   enabled: z.boolean().optional(),
+  events: z.array(z.enum(["new_item", "field_changed", "crosses_below", "numeric_delta", "llm_assessment", "health_degraded", "health_recovered"])).min(1).optional(),
 };
 
 export const inboxNotificationSchema = z
@@ -482,17 +499,28 @@ function requireSecureNotification(
   }
 }
 
+const emailAddressSchema = z.email().max(254).regex(/^[^\s<>\u0000-\u001f\u007f]+$/);
+export const emailNotificationSchema = z.object({
+  ...notificationBaseShape,
+  type: z.literal("email"),
+  to: emailAddressSchema,
+  from: emailAddressSchema.optional(),
+  account: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/).optional(),
+}).strict();
+
 export const notificationSchema = z.discriminatedUnion("type", [
   inboxNotificationSchema,
   desktopNotificationSchema,
   ntfyNotificationSchema,
   webhookNotificationSchema,
+  emailNotificationSchema,
 ]);
 
 export type InboxNotification = z.infer<typeof inboxNotificationSchema>;
 export type DesktopNotification = z.infer<typeof desktopNotificationSchema>;
 export type NtfyNotification = z.infer<typeof ntfyNotificationSchema>;
 export type WebhookNotification = z.infer<typeof webhookNotificationSchema>;
+export type EmailNotification = z.infer<typeof emailNotificationSchema>;
 export type Notification = z.infer<typeof notificationSchema>;
 export type NotificationConfig = Notification;
 
@@ -573,6 +601,7 @@ export function semanticMonitorValue(monitor: Monitor): SemanticMonitorValue {
 }
 
 function effectiveSource(source: Source): Record<string, unknown> {
+  if (source.type === "x") return { ...source, handle: source.handle.toLowerCase(), adapterVersion: 1 };
   if (source.type === "feed") {
     const { includeKeywords: _include, excludeKeywords: _exclude, keywords, exclude, ...rest } = source;
     return { ...rest, keywords: sortedUnique(keywords ?? source.includeKeywords ?? []), exclude: sortedUnique(exclude ?? source.excludeKeywords ?? []) };
