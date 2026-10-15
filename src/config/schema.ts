@@ -6,7 +6,8 @@ import { isCurrencyCode } from "../core/money.ts";
 
 export const SAFE_ID_PATTERN = /^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/;
 export const ENV_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
-export const X_ADAPTER_VERSION = 2;
+export const X_ADAPTER_VERSION = 3;
+export type XAdapterVersion = 1 | 2 | 3;
 
 export const idSchema = z
   .string()
@@ -581,7 +582,7 @@ export type MonitorConfig = Monitor;
 
 export type SemanticMonitorValue = Record<string, unknown>;
 
-export function semanticMonitorValue(monitor: Monitor, xAdapterVersion: 1 | 2 = X_ADAPTER_VERSION): SemanticMonitorValue {
+export function semanticMonitorValue(monitor: Monitor, xAdapterVersion: XAdapterVersion = X_ADAPTER_VERSION): SemanticMonitorValue {
   const assertions = monitor.assertions ?? {};
   return {
     version: monitor.version,
@@ -605,7 +606,7 @@ export function semanticMonitorValue(monitor: Monitor, xAdapterVersion: 1 | 2 = 
   };
 }
 
-function effectiveSource(source: Source, xAdapterVersion: 1 | 2): Record<string, unknown> {
+function effectiveSource(source: Source, xAdapterVersion: XAdapterVersion): Record<string, unknown> {
   if (source.type === "x") return { ...source, handle: source.handle.toLowerCase(), adapterVersion: xAdapterVersion };
   if (source.type === "feed") {
     const { includeKeywords: _include, excludeKeywords: _exclude, keywords, exclude, ...rest } = source;
@@ -638,7 +639,7 @@ function stableJson(value: unknown): string {
   return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`).join(",")}}`;
 }
 
-export function semanticMonitorHash(input: unknown, xAdapterVersion: 1 | 2 = X_ADAPTER_VERSION): string {
+export function semanticMonitorHash(input: unknown, xAdapterVersion: XAdapterVersion = X_ADAPTER_VERSION): string {
   const monitor = monitorSchema.parse(input);
   return createHash("sha256").update(stableJson(semanticMonitorValue(monitor, xAdapterVersion))).digest("hex");
 }

@@ -4,7 +4,7 @@ import type { ScanItem } from "../core/types.ts";
 import { assertAllowedOrigin, checkedCall, createBrowserOsNeoClient, pageId, verifiedReadText, verifyTools } from "./browseros.ts";
 import { finish, type BrowserOsMcpClient, type SourceDependencies } from "./types.ts";
 
-const STATUS_LINK = /\[[^\]]*\]\(https:\/\/x\.com\/([A-Za-z0-9_]+)\/status\/(\d+)\)/g;
+const STATUS_LINK = /\[[^\]]*\]\(https:\/\/x\.com\/([A-Za-z0-9_]+)\/status\/(\d+)(?:\/history)?\)/g;
 
 export async function collectX(source: XSource, dependencies: SourceDependencies, context?: CollectorContext) {
   const handle = source.handle.toLowerCase();
@@ -123,7 +123,9 @@ export async function collectX(source: XSource, dependencies: SourceDependencies
 }
 
 function selector(handle: string, id: string, detail = false): string {
-  return `article[data-testid="tweet"]:has(${detail ? "" : '[data-testid="User-Name"] '}a[href="/${handle}/status/${id}" i])`;
+  // Edited permalink timestamps link to history instead of the canonical post.
+  const links = `a[href="/${handle}/status/${id}" i]${detail ? `, a[href="/${handle}/status/${id}/history" i]` : ""}`;
+  return `article[data-testid="tweet"]:has(${detail ? "" : '[data-testid="User-Name"] '}${links})`;
 }
 
 export function timelineIds(text: string, handle: string): string[] {
@@ -137,7 +139,7 @@ function postIds(text: string, handle: string): string[] {
 
 function primaryHeader(text: string, handle: string, id: string): string | undefined {
   const profile = `https://x.com/${handle.toLowerCase()}`;
-  if (!text.toLowerCase().includes(`](${profile}/status/${id})`)) return undefined;
+  if (!postIds(text, handle.toLowerCase()).includes(id)) return undefined;
   let offset = 0;
   // Read leading profile links rather than treating nested avatar/name brackets as the author boundary.
   while (text[offset] === "[") {
@@ -170,7 +172,7 @@ export function parseXPost(markdown: string, handle: string, id: string, allowTr
   if (!header) throw new Error("X post author/identity could not be verified");
   const analytics = analyticsMarker(markdown, handle, id);
   if (!analytics) throw new Error("X post lacks its completion marker");
-  const timestamp = new RegExp(`\\[[^\\]]*\\]\\(https://x\\.com/${handle}/status/${id}\\)`, "i");
+  const timestamp = new RegExp(`\\[[^\\]]*\\]\\(https://x\\.com/${handle}/status/${id}(?:/history)?\\)`, "i");
   const text = markdown.slice(header.length, analytics.index).replace(timestamp, "").trim();
   if (!text) throw new Error("X post has no accessible text or media description");
   const url = `https://x.com/${handle}/status/${id}`;

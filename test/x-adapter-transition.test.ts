@@ -7,7 +7,7 @@ import { stringify } from "yaml";
 import { Runtime } from "../src/app/runtime.ts";
 import { monitorSchema, semanticMonitorHash } from "../src/config/schema.ts";
 
-test("X author-parser upgrade preserves strict-new accepted identities and original startup cutoff", async context => {
+for (const previousVersion of [1, 2] as const) test(`X v${previousVersion} parser upgrade preserves strict-new accepted identities and original startup cutoff`, async context => {
   const directory = await mkdtemp(join(tmpdir(), "sss-adapter-upgrade-"));
   const monitorsDir = join(directory, "monitors");
   await mkdir(monitorsDir);
@@ -16,7 +16,7 @@ test("X author-parser upgrade preserves strict-new accepted identities and origi
   await writeFile(join(monitorsDir, "watch.yaml"), stringify(config));
   const runtime = new Runtime({ ephemeral: true, monitorsDir, stateDir: join(directory, "state"), collector: async () => { throw new Error("must not acquire during sync"); } });
   context.after(async () => { runtime.close(); await rm(directory, { recursive: true, force: true }); });
-  const oldNamespace = semanticMonitorHash(config, 1), nextNamespace = semanticMonitorHash(config);
+  const oldNamespace = semanticMonitorHash(config, previousVersion), nextNamespace = semanticMonitorHash(config);
   assert.notEqual(oldNamespace, nextNamespace);
   runtime.store.syncMonitor(config, JSON.stringify(config), oldNamespace, "2026-10-07T09:00:00.000Z");
   for (const [id, at] of [["x:100", "2026-10-07T09:00:00.000Z"], ["x:200", "2026-10-07T09:05:00.000Z"]]) {

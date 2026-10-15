@@ -211,7 +211,7 @@ The first-scan boundary also suppresses historical posts that later page loads e
 Health failures and recovery remain in the inbox. They do not send reset-hint email.
 
 The X adapter uses Latest search without a keyword filter. It verifies each post's primary author before pagination.
-It reads full posts and preserves reply and quote context. Display timestamps cannot trigger another assessment.
+It reads full posts, including edited posts, and preserves reply and quote context. Display timestamps cannot trigger another assessment.
 For known IDs, these monitors reuse accepted content and do not reopen post pages.
 Missing overlap, incomplete posts, login errors, and acquisition limits degrade the scan.
 X search can omit unindexed or deleted posts. This browser source cannot guarantee exhaustive coverage.
@@ -220,7 +220,7 @@ Videos are not transcribed. Image assessment requires accessible X image URLs.
 Keep the machine and BrowserOS Neo running. Keep the X session, Codex login, and email account authenticated.
 Run `sss validate`, `sss test`, and `sss doctor` before you enable the recipe.
 When only the X assessment trigger becomes stricter, SSS inherits acquisition history without copying old judgments or creating alerts.
-The version 2 X parser upgrade also preserves compatible strict-new history and the original startup cutoff.
+The version 3 X parser upgrade also preserves compatible strict-new history and the original startup cutoff from versions 1 and 2.
 
 ## Service
 

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import type { Monitor } from "../config/schema.ts";
 import { loadMonitorById, loadMonitorFiles, loadMonitorFile } from "../config/load.ts";
-import { monitorSchema, semanticMonitorHash } from "../config/schema.ts";
+import { monitorSchema, semanticMonitorHash, X_ADAPTER_VERSION } from "../config/schema.ts";
 import { ScannerEngine, type Collector, type RunResult } from "../core/engine.ts";
 import { drainOutbox } from "../notifications/outbox.ts";
 import { nextOccurrence } from "../scheduler/schedule.ts";
@@ -115,7 +115,7 @@ function canInheritXAcquisition(configJson: string, namespace: string, next: Mon
     const previous = monitorSchema.parse(JSON.parse(configJson) as unknown);
     if (previous.source.type !== "x" || next.source.type !== "x" || previous.enabled !== next.enabled ||
         next.rules.some(rule => rule.type !== "llm_assessment" || rule.trigger !== "new_item")) return false;
-    const adapterVersion = ([2, 1] as const).find(version => semanticMonitorHash(previous, version) === namespace);
+    const adapterVersion = ([3, 2, 1] as const).find(version => semanticMonitorHash(previous, version) === namespace);
     if (adapterVersion === undefined) return false;
     const oldRules = new Map(previous.rules.map(rule => [rule.id, rule]));
     let narrowed = false;
@@ -125,7 +125,7 @@ function canInheritXAcquisition(configJson: string, namespace: string, next: Mon
       if (old.trigger !== "new_item") narrowed = true;
       return { ...rule, trigger: old.trigger ?? "new_or_changed" };
     });
-    return (narrowed || adapterVersion === 1) && semanticMonitorHash({ ...next, rules }, adapterVersion) === namespace;
+    return (narrowed || adapterVersion < X_ADAPTER_VERSION) && semanticMonitorHash({ ...next, rules }, adapterVersion) === namespace;
   } catch { return false; }
 }
 
