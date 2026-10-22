@@ -1,0 +1,62 @@
+[
+  {
+    "id": "tibo-reset-day",
+    "monitor": "thsottiaux-codex-reset",
+    "suggestive": true,
+    "observation": {
+      "id": "x:2113162277688070445",
+      "url": "https://x.com/thsottiaux/status/2113162277688070445",
+      "data": {
+        "author": "thsottiaux",
+        "postId": "2113162277688070445",
+        "url": "https://x.com/thsottiaux/status/2113162277688070445",
+        "text": "Day 17/ Bet you thought we forgot, but no, it’s reset day today. Also good time to remind you to get Daybreak Blue access, it only takes 15 mins and you don’t want to have to do it in the middle of an incident.",
+        "context": "# Conversation"
+      }
+    }
+  },
+  {
+    "id": "tibo-reset-followup",
+    "monitor": "thsottiaux-codex-reset",
+    "suggestive": true,
+    "observation": {
+      "id": "x:2113162413008884099",
+      "url": "https://x.com/thsottiaux/status/2113162413008884099",
+      "data": {
+        "author": "thsottiaux",
+        "postId": "2113162413008884099",
+        "url": "https://x.com/thsottiaux/status/2113162413008884099",
+        "text": "Lands tomorrow before 10am PST.",
+        "context": "# Conversation\n\n[Tibo](https://x.com/thsottiaux)[@thsottiaux](https://x.com/thsottiaux)[6m](https://x.com/thsottiaux/status/2113162277688070445)Day 17/ Bet you thought we forgot, but no, it’s reset day today. Also good time to remind you to get Daybreak Blue access, it only takes 15 mins and you don’t want to have to do it in the middle of an incident.[53K](https://x.com/thsottiaux/status/2113162277688070445/analytics)"
+      }
+    }
+  },
+  { "id": "tibo-completed", "monitor": "thsottiaux-codex-reset", "suggestive": true,
+    "observation": { "id": "synthetic:completed", "data": { "author": "thsottiaux", "text": "Just reset everyone. Enjoy." } } },
+  { "id": "tibo-implicit", "monitor": "thsottiaux-codex-reset", "suggestive": true,
+    "observation": { "id": "synthetic:implicit", "data": { "author": "thsottiaux", "text": "Your tanks might be full again soon 👀" } } },
+  { "id": "tibo-ambiguous-reply", "monitor": "thsottiaux-codex-reset", "suggestive": true,
+    "observation": { "id": "synthetic:reply", "data": { "author": "thsottiaux", "text": "👀", "context": "User: Any chance of fresh limits before the weekend?" } } },
+  { "id": "tibo-unrelated", "monitor": "thsottiaux-codex-reset", "suggestive": false,
+    "observation": { "id": "synthetic:unrelated", "data": { "author": "thsottiaux", "text": "Congrats" } } },
+  { "id": "tibo-context-reset", "monitor": "thsottiaux-codex-reset", "suggestive": false,
+    "observation": { "id": "synthetic:context", "data": { "author": "thsottiaux", "text": "Use /new to reset your conversation context. Usage allowances are unchanged." } } },
+  { "id": "tibo-other-product", "monitor": "thsottiaux-codex-reset", "suggestive": false,
+    "observation": { "id": "synthetic:other", "data": { "author": "thsottiaux", "text": "Claude usage limits were reset today. This does not apply to Codex." } } },
+  { "id": "claude-implicit", "monitor": "claudedevs-claude-reset", "suggestive": true,
+    "observation": { "id": "synthetic:claude-implicit", "data": { "author": "ClaudeDevs", "text": "The tank may be full again soon. 👀" } } },
+  { "id": "claude-completed", "monitor": "claudedevs-claude-reset", "suggestive": true,
+    "observation": { "id": "synthetic:claude-completed", "data": { "author": "ClaudeDevs", "text": "We just reset everyone's usage. Enjoy the fresh allowance." } } },
+  { "id": "claude-unrelated", "monitor": "claudedevs-claude-reset", "suggestive": false,
+    "observation": { "id": "synthetic:claude-unrelated", "data": { "author": "ClaudeDevs", "text": "We published a new guide to CSS grid layouts." } } },
+  { "id": "claude-other-product", "monitor": "claudedevs-claude-reset", "suggestive": false,
+    "observation": { "id": "synthetic:claude-other", "data": { "author": "ClaudeDevs", "text": "Codex allowances have reset. Claude.ai and Claude Code allowances remain unchanged." } } },
+  { "id": "claude-context-reset", "monitor": "claudedevs-claude-reset", "suggestive": false,
+    "observation": { "id": "synthetic:claude-context", "data": { "author": "ClaudeDevs", "text": "Use /clear to reset your conversation context. Usage allowances are unchanged." } } },
+  { "id": "claude-ambiguous-reply", "monitor": "claudedevs-claude-reset", "suggestive": true,
+    "observation": { "id": "synthetic:claude-reply", "data": { "author": "ClaudeDevs", "text": "👀", "context": "User: Any chance of fresh limits before the weekend?" } } },
+  { "id": "tibo-historical-only", "monitor": "thsottiaux-codex-reset", "suggestive": false,
+    "observation": { "id": "synthetic:historical", "data": { "author": "thsottiaux", "text": "Looking back at the Codex usage reset we did last year. This is only a historical recap; no new reset is planned or underway." } } },
+  { "id": "claude-historical-only", "monitor": "claudedevs-claude-reset", "suggestive": false,
+    "observation": { "id": "synthetic:claude-historical", "data": { "author": "ClaudeDevs", "text": "Looking back at the Claude usage reset we did last year. This is only a historical recap; no new reset is planned or underway." } } }
+]

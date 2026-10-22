@@ -204,6 +204,9 @@ SSS rejects tool-call output and incomplete responses. Codex model discovery ref
 [`monitors/thsottiaux-codex-reset.yaml`](./monitors/thsottiaux-codex-reset.yaml) watches `@thsottiaux` for Codex usage-limit reset hints every five minutes.
 [`monitors/claudedevs-claude-reset.yaml`](./monitors/claudedevs-claude-reset.yaml) watches `@ClaudeDevs` for Claude.ai and Claude Code usage-reset hints on the same schedule.
 Both use `gpt-6.1-sol` with `xhigh` reasoning. They send matching observations to the configured Gmail recipient.
+Both favor recall over precision. A plausible reset hint can trigger an alert even when the product or timing is implicit.
+The trusted rubric supplies the account context. Fresh confirmations of completed resets also qualify.
+Clearly unrelated posts and clearly other-product-only resets remain outside the target.
 The five-minute poll uses deterministic BrowserOS reads, not inference. Only unseen post or reply IDs reach the model.
 It includes authored posts, replies, emojis, quoted text, parent context, and accessible attached images.
 The first accepted scan suppresses existing posts. Matching future observations send email to the configured recipient.
@@ -221,6 +224,18 @@ Keep the machine and BrowserOS Neo running. Keep the X session, Codex login, and
 Run `sss validate`, `sss test`, and `sss doctor` before you enable the recipe.
 When only the X assessment trigger becomes stricter, SSS inherits acquisition history without copying old judgments or creating alerts.
 The version 3 X parser upgrade also preserves compatible strict-new history and the original startup cutoff from versions 1 and 2.
+
+When you deploy a prompt-only update to either bundled reset monitor, stop the scheduler first.
+Before you run `sss sync` or restart the scheduler, run this command for each changed monitor:
+
+```bash
+node scripts/upgrade-reset-rubrics.ts thsottiaux-codex-reset
+node scripts/upgrade-reset-rubrics.ts claudedevs-claude-reset
+```
+
+The command preserves accepted IDs and the startup cutoff in the new namespace. It leaves old judgments intact in the old namespace.
+New posts still receive an assessment. Previously accepted posts stay quiet, including cached false negatives.
+The command rejects changes outside the prompt. You can repeat the command safely.
 
 ## Service
 
@@ -256,3 +271,14 @@ pnpm test:coverage
 ```
 
 The tests use fixtures. They do not change external services.
+
+Run the live reset-assessment regression separately:
+
+```bash
+pnpm eval:resets
+pnpm eval:resets tibo-reset-day tibo-reset-followup
+```
+
+This command uses the configured Codex login and consumes inference quota. It does not write scanner state or send alerts.
+It checks the bundled recipes against observed posts and synthetic positive and negative cases.
+Model results can vary. A successful run does not guarantee that future posts receive the intended judgment.

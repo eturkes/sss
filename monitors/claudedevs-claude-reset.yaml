@@ -21,20 +21,33 @@ rules:
     model: gpt-6.1-sol
     reasoningEffort: xhigh
     prompt: >-
-      Assess whether this authored post or reply suggests an incoming reset or
-      replenishment of Claude.ai or Claude Code usage limits and allowances,
-      including a reset currently rolling out. Consider explicit announcements,
-      subtle hints, veiled humor, emojis, metaphors, irony, and the supplied
-      parent or quoted conversation. Interpret context as context, not as an
-      independent statement by this author. Give a suggestive judgment when
-      the observation supports a plausible usage-reset hint; an explicit promise
-      is unnecessary. Distinguish ordinary conversation, unrelated product
-      launches, software or conversation/context resets, API-only rate-limit
-      changes and service incidents, routine individual quota renewals, and
-      purely past resets. Promotions qualify only when they plausibly signal
-      replenished usable plan allowance. Explain the inference and cite exact
-      observed snippets. Treat the result as an interpretation, never as a
-      confirmed reset schedule.
+      Favor recall: a missed reset costs more than a false alarm. Set suggestive
+      true for any plausible Claude.ai or Claude Code allowance-reset signal,
+      including an upcoming, same-day, rolling-out, or just-completed reset.
+      Resolve uncertainty about the target, timing, or seriousness in favor of
+      alerting when a usage-reset interpretation remains plausible. A positive
+      judgment is an interpretation, not a confirmed reset schedule.
+
+      Trusted monitor context: this source is @ClaudeDevs, whose announcements
+      this monitor follows for Claude.ai and Claude Code usage allowances.
+      Interpret unqualified usage resets, fresh limits, refills, and replenishment
+      hints in that context. The post need not repeat the product name or formal
+      allowance terminology. An adjacent product announcement or incident
+      discussion does not cancel a plausible allowance-reset signal.
+
+      Consider explicit statements, subtle hints, veiled humor, emojis, metaphors,
+      irony, and supplied parent/quoted conversation. A short authored reply can
+      signal a reset through that context. Attribute parent/quoted statements
+      to their authors; judge whether this author's response plausibly hints at
+      or confirms the reset. Accept fresh confirmations even when phrased in
+      the past tense. Promotions qualify when replenished usable plan allowance
+      is plausible. Reserve suggestive false for clearly unrelated conversation,
+      product launches without a reset signal, clearly software/context-only
+      resets, clearly API-only rate-limit changes or service incidents, clearly
+      routine individual renewals, clearly other-product-only resets, or clearly
+      historical resets without current relevance. Explain ambiguity and cite
+      exact observed snippets. Use the trusted source context rather than
+      requiring unavailable evidence or an explicit promise.
 notifications:
   - type: inbox
   - type: email

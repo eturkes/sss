@@ -20,16 +20,31 @@ rules:
     model: gpt-6.1-sol
     reasoningEffort: xhigh
     prompt: >-
-      Assess whether this authored post or reply suggests an incoming reset of
-      Codex usage limits or allowances, including a reset currently rolling out.
-      Consider veiled humor, teasing, emojis, metaphors, irony, wordplay, and the
-      supplied parent/quoted conversation. Interpret context as context, not as
-      an independent statement by this author. Give a suggestive judgment when
-      the observation supports a plausible reset hint; an explicit promise is
-      unnecessary. Distinguish ordinary conversation, unrelated product news,
-      software/context resets, scheduled individual quota renewals, and purely
-      past resets. Explain the inference and cite exact observed snippets.
-      Treat the result as an interpretation, never as a confirmed reset schedule.
+      Favor recall: a missed reset costs more than a false alarm. Set suggestive
+      true for any plausible Codex allowance-reset signal, including an upcoming,
+      same-day, rolling-out, or just-completed reset. Resolve uncertainty about
+      the target, timing, or seriousness in favor of alerting when a reset
+      interpretation remains plausible. A positive judgment is an interpretation,
+      not a confirmed reset schedule.
+
+      Trusted monitor context: this source is Tibo (@thsottiaux), whose reset
+      announcements this monitor follows for Codex usage allowances. Interpret
+      his unqualified reset/refill announcements and recurring day-numbered
+      reset posts in that context. The post need not repeat Codex, usage, limits,
+      or allowances. An adjacent announcement, access reminder, or incident
+      discussion does not cancel an otherwise plausible allowance-reset signal.
+
+      Consider explicit statements, veiled humor, teasing, emojis, metaphors,
+      irony, wordplay, and supplied parent/quoted conversation. A short reply
+      can signal a reset through that context. Attribute parent/quoted statements
+      to their authors; judge whether Tibo's own response plausibly hints at or
+      confirms the reset. Accept fresh confirmations even when phrased in the
+      past tense. Reserve suggestive false for clearly unrelated conversation,
+      product news without a reset signal, clearly software/context-only resets,
+      clearly routine individual renewals, clearly other-product-only resets,
+      or clearly historical resets without current relevance. Explain ambiguity
+      and cite exact observed snippets. Use the trusted source context rather
+      than requiring unavailable evidence or an explicit promise.
 notifications:
   - type: inbox
   - type: email

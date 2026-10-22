@@ -13,6 +13,7 @@
     "check": "tsc --noEmit",
     "test": "node --test --test-concurrency=1",
     "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage",
+    "eval:resets": "node scripts/evaluate-reset-assessments.ts",
     "sss": "node src/cli.ts"
   },
   "engines": {
