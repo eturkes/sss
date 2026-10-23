@@ -50,6 +50,6 @@ notifications:
   - type: email
     events: [llm_assessment]
     account: gmail
-    from: emir.turkes@eturkes.com
-    to: emir.turkes@eturkes.com
+    from: emiru.tarukesu@gmail.com
+    to: emiru.tarukesu@gmail.com
 health: { failuresBeforeAlert: 3 }
