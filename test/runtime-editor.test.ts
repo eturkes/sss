@@ -48,6 +48,26 @@ test("runtime editor rejects another process's active scan without changing YAML
   } finally { peer.close(); }
 });
 
+test("X v3 history survives the v4 parser upgrade without copying judgments", async context => {
+  const { runtime } = await fixture(context);
+  const config = monitorSchema.parse({ version: 1, id: "sample", name: "Sample", enabled: false,
+    schedule: { every: "5m" }, source: { type: "x", handle: "thsottiaux" },
+    rules: [{ type: "llm_assessment", id: "reset", trigger: "new_item", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Reset hints." }] });
+  const old = semanticMonitorHash(config, 3), next = semanticMonitorHash(config);
+  assert.notEqual(old, next);
+  runtime.store.syncMonitor(config, JSON.stringify(config), old, "2026-10-01T00:00:00Z");
+  const run = runtime.store.beginRun(config.id, old, "original", "2026-10-01T00:00:00Z", "2000-01-01T00:00:00Z");
+  runtime.store.acceptItems(run.id, config.id, old, [{ id: "x:100", hash: "exact", data: { text: " α\n" } }], "2026-10-01T00:00:00Z");
+  runtime.store.setRuleState(config.id, old, "reset", "x:100", { suggestive: false }, "2026-10-01T00:00:00Z");
+  runtime.store.finishRun(run.id, run.token, config.id, "ok_unchanged", "2026-10-01T00:00:00Z", 1, 0);
+  await writeFile(join(runtime.monitorsDir, "sample.yaml"), JSON.stringify(config));
+  await runtime.sync();
+  assert.deepEqual(runtime.store.existingItems(config.id, next), runtime.store.existingItems(config.id, old));
+  assert.deepEqual(runtime.store.bootstrapItemIds(config.id, next), ["x:100"]);
+  assert.equal(runtime.store.ruleState(config.id, next, "reset", "x:100"), undefined);
+  assert.equal(runtime.store.events().length, 0);
+});
+
 test("editor parser transitions use nested transactions without weakening rollback", async context => {
   const { runtime } = await fixture(context);
   const config = monitorSchema.parse({ version: 1, id: "sample", name: "Sample", enabled: false,

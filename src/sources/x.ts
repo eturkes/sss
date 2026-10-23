@@ -129,7 +129,7 @@ function selector(handle: string, id: string, detail = false): string {
 }
 
 export function timelineIds(text: string, handle: string): string[] {
-  const pattern = new RegExp(`\\[@${handle}\\]\\(https://x\\.com/${handle}\\)\\[[^\\]]*\\]\\(https://x\\.com/${handle}/status/(\\d+)\\)`, "ig");
+  const pattern = new RegExp(`\\[@${handle}\\]\\(https://x\\.com/${handle}\\)[\\s·]*\\[[^\\]]*\\]\\(https://x\\.com/${handle}/status/(\\d+)\\)`, "ig");
   return [...new Set([...text.matchAll(pattern)].map(match => match[1]!))];
 }
 
@@ -188,8 +188,9 @@ async function readReady(client: BrowserOsMcpClient, page: number, selector: str
   for (let attempt = 0; attempt < 12; attempt++) {
     const result = await checkedCall(client, "read", { page, format: "markdown", selector, includeImages: true, includeLinks: true, viewportOnly: false });
     const text = verifiedReadText(result, "https://x.com");
-    if (/Something went wrong|Rate limit exceeded|Sign in to X|Log in to X|Verify you are human|Account suspended/i.test(text)) throw new Error("X login/rate-limit/error page; acquisition is incomplete");
+    // Complete structural evidence can contain authored login/error phrases.
     if (ready(text)) return text;
+    if (/Something went wrong|Rate limit exceeded|Sign in to X|Log in to X|Verify you are human|Account suspended/i.test(text)) throw new Error("X login/rate-limit/error page; acquisition is incomplete");
     if (attempt + 1 < 12) await new Promise(resolve => setTimeout(resolve, 250));
   }
   throw new Error("X timeline/post did not load completely");

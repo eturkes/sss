@@ -159,7 +159,7 @@ function canInheritXAcquisition(configJson: string, namespace: string, next: Mon
     const previous = monitorSchema.parse(JSON.parse(configJson) as unknown);
     if (previous.source.type !== "x" || next.source.type !== "x" || previous.enabled !== next.enabled ||
         next.rules.some(rule => rule.type !== "llm_assessment" || rule.trigger !== "new_item")) return false;
-    const adapterVersion = ([3, 2, 1] as const).find(version => semanticMonitorHash(previous, version) === namespace);
+    const adapterVersion = ([4, 3, 2, 1] as const).find(version => semanticMonitorHash(previous, version) === namespace);
     if (adapterVersion === undefined) return false;
     const oldRules = new Map(previous.rules.map(rule => [rule.id, rule]));
     let narrowed = false;

@@ -8,8 +8,8 @@ import { createPlaywrightSourceSchema } from "./playwright.ts";
 
 export const SAFE_ID_PATTERN = /^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/;
 export const ENV_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
-export const X_ADAPTER_VERSION = 3;
-export type XAdapterVersion = 1 | 2 | 3;
+export const X_ADAPTER_VERSION = 4;
+export type XAdapterVersion = 1 | 2 | 3 | 4;
 
 export const idSchema = z
   .string()
