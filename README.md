@@ -36,6 +36,8 @@ pnpm sss serve
 
 Open <http://127.0.0.1:7337>. `serve` runs the scheduler, alert outbox, and dashboard.
 Use `daemon` to run the scheduler and delivery worker without the dashboard.
+Select **Edit recipe** to change an existing monitor. Save validates the YAML and applies the recipe without a scan.
+The editor rejects stale edits and active scans. Keep the monitor ID and use environment references for credentials.
 
 | Command | Action |
 |---|---|
@@ -49,6 +51,7 @@ Use `daemon` to run the scheduler and delivery worker without the dashboard.
 | `sss events [--json] [--limit N]` | Show the event inbox. |
 | `sss history MONITOR [ITEM] [--json] [--limit N]` | Show accepted observations. |
 | `sss deliveries [--json] [--limit N]` | Show pending and failed alert deliveries. |
+| `sss artifacts [MONITOR] [--json] [--limit N]` | Show retained observation files and their expiry times. |
 | `sss doctor` | Check the runtime, recipes, SQLite, and BrowserOS. |
 | `sss draft 'watch …'` | Ask isolated Codex to produce schema-constrained JSON. |
 | `sss serve [--port 7337]` | Run the dashboard, scheduler, and delivery worker. |
@@ -90,12 +93,41 @@ health: { failuresBeforeAlert: 3 }
 | `json` | Reads supported APIs. | Uses safe dotted paths and explicit field mappings. |
 | `html` | Reads static pages. | Uses Cheerio CSS selectors without script execution. |
 | `openalex` | Searches research. | Requires `OPENALEX_API_KEY` and uses stable work IDs. |
+| `crossref` | Searches Crossref works. | Traverses opaque cursors with DOI identities and a fixed index-time bound. |
+| `arxiv` | Searches the arXiv API. | Traverses offsets with versionless identities and a fixed submission-time bound. |
+| `playwright` | Renders anonymous dynamic pages. | Uses a fresh browser with public, read-only request interception. |
 | `browseros` | Reads signed-in or dynamic pages. | Uses direct, read-only MCP calls through a fixed local endpoint. |
 | `x` | Reads an account's posts and replies through BrowserOS Neo. | Paginates Latest search until an accepted post overlaps. |
 
 Prefer official APIs and feeds over page scraping. When a page needs an authenticated browser session, use BrowserOS.
 A scheduled BrowserOS recipe can navigate to and read allowed origins.
 It cannot click, fill forms, download, evaluate JavaScript, or access app connectors.
+
+Crossref and arXiv use `query`, optional `perPage` (default `100`), and optional `maxPages` (default `100`).
+Crossref also accepts a `filter` mapping. SSS reserves `until-index-date` for the scan bound.
+Each scan must acquire the complete bounded query. A changed count, repeated identity, missing page, or limit degrades the scan.
+The hard limit is 10,000 items. Narrow a query that exceeds the limit.
+arXiv requests use one connection at a time with at least three seconds between requests in each process.
+These APIs do not provide an atomic snapshot. A frozen time bound cannot prevent every indexing change.
+See [the Crossref example](./examples/research-crossref.yaml) and [the arXiv example](./examples/research-arxiv.yaml).
+
+For an anonymous dynamic page, use Linux with working Bubblewrap (`bwrap`) and user namespaces.
+Install the bundled browser in the project cache:
+
+```bash
+export PLAYWRIGHT_BROWSERS_PATH="$PWD/.sss/browser-cache"
+pnpm exec playwright install chromium --no-shell
+```
+
+Use `type: playwright` with the HTML field mappings and a required `waitForSelector`.
+SSS waits for that selector before it extracts the rendered DOM. Choose a selector that marks a complete result.
+Keep `PLAYWRIGHT_BROWSERS_PATH` set when you run SSS. For the service, set its absolute cache path in the service environment file.
+The browser runs in a separate network namespace. The root filesystem is read-only. The temporary profile and device filesystem are private.
+Every document and subresource request uses the public-network policy. Requests must use GET or HEAD.
+Redirects, credentials, WebSockets, service workers, popups, and downloads are blocked.
+The source has no persistent login, custom script, click, or form action.
+Acquisition fails when the request, byte, or time limit is reached.
+See [the dynamic page example](./examples/playwright-page.yaml).
 
 ### Rules and bootstrapping
 
@@ -115,6 +147,11 @@ An unaccepted post can retry after an assessment failure.
 Old data-only cache entries refresh once in revision mode. A positive refresh can repeat an earlier alert.
 The strict-new mode still skips accepted IDs before checking the revision key.
 An assessment failure preserves the accepted baseline. The result describes a model interpretation, not a confirmed future event.
+
+For general semantic matching, set `mode: semantic`, `target`, and a trusted `prompt` on an `llm_assessment` rule.
+Keep the model and reasoning settings above. Omit `product` in this mode.
+Use this rule alone when only matching items must create events. A parallel `new_items` rule still alerts on every new identity.
+Positive and negative judgments use the same revision cache and failure handling as reset assessments.
 
 By default, `bootstrap: suppress_existing` suppresses alerts during the first accepted scan.
 When the first accepted value must trigger an existing condition, use `evaluate_current`.
@@ -161,6 +198,27 @@ Reference secrets through environment variables. SSS removes their values from e
 
 Email uses `msmtp` and its existing account configuration. Email includes the source URL, complete observation, model judgment, and evidence.
 The optional `events` filter limits each channel to selected event kinds. The inbox still retains every event.
+
+Select **Mobile alerts** in the dashboard to configure your phone for ntfy.
+The guide shows each configured server and topic, subscription links, and environment variable names for authentication.
+If no channel exists, copy its example into a recipe. Save the recipe, then subscribe in the ntfy mobile app.
+The guide and editor do not send test notifications.
+
+### Observation artifacts
+
+Artifact storage is off by default. To retain exact extracted observations before normalization, add:
+
+```yaml
+artifacts: { retentionDays: 30 }
+```
+
+SSS stores JSON under `.sss/artifacts/<sha256>.json` with private file permissions.
+Identical bytes share one file. Each accepted run has its own expiry reference.
+The file contains the complete extracted items and optional diagnostics. It does not contain raw page bodies, browser profiles, or acquisition clocks.
+The maximum file size is 16 MiB. An artifact write failure degrades the scan and preserves the accepted baseline.
+Dry runs do not store artifacts. `sss artifacts` lists each reference and file path.
+The scheduler removes expired references and unreferenced files during daily maintenance.
+Expiry does not delete the latest accepted item snapshot. Back up the artifact directory with the database if you enable this option.
 
 ## Safety model
 
@@ -223,7 +281,7 @@ Videos are not transcribed. Image assessment requires accessible X image URLs.
 Keep the machine and BrowserOS Neo running. Keep the X session, Codex login, and email account authenticated.
 Run `sss validate`, `sss test`, and `sss doctor` before you enable the recipe.
 When only the X assessment trigger becomes stricter, SSS inherits acquisition history without copying old judgments or creating alerts.
-The version 3 X parser upgrade also preserves compatible strict-new history and the original startup cutoff from versions 1 and 2.
+The version 4 X parser upgrade also preserves compatible strict-new history and the original startup cutoff from versions 1, 2, and 3.
 
 When you deploy a prompt-only update to either bundled reset monitor, stop the scheduler first.
 Before you run `sss sync` or restart the scheduler, run this command for each changed monitor:
@@ -268,9 +326,11 @@ Run the checks:
 pnpm check
 pnpm test
 pnpm test:coverage
+PLAYWRIGHT_BROWSERS_PATH="$PWD/.sss/browser-cache" node scripts/check-playwright.ts
 ```
 
 The tests use fixtures. They do not change external services.
+The Playwright check requires the installed Chromium build. It verifies dynamic rendering and blocked network/action paths with local fixtures.
 
 Run the live reset-assessment regression separately:
 
