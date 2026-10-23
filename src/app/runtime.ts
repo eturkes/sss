@@ -11,6 +11,7 @@ import { safeFetch } from "../security/network.ts";
 import { safeErrorMessage } from "../security/text.ts";
 import { createCollector } from "../sources/collect.ts";
 import { Store } from "../store/database.ts";
+import { ArtifactStore } from "../store/artifacts.ts";
 
 export type RuntimeOptions = { stateDir?: string; monitorsDir?: string; now?: () => Date; ephemeral?: boolean; collector?: Collector };
 const RETENTION_INTERVAL_MS = 24 * 60 * 60_000;
@@ -22,6 +23,7 @@ export class Runtime {
   readonly store: Store;
   readonly engine: ScannerEngine;
   readonly now: () => Date;
+  readonly artifacts: ArtifactStore;
   private nextMaintenanceAt = 0;
 
   constructor(options: RuntimeOptions = {}) {
@@ -29,7 +31,8 @@ export class Runtime {
     this.monitorsDir = resolve(options.monitorsDir ?? process.env["SSS_MONITORS_DIR"] ?? "monitors");
     this.now = options.now ?? (() => new Date());
     this.store = new Store(options.ephemeral ? ":memory:" : resolve(this.stateDir, "sss.db"));
-    this.engine = new ScannerEngine(this.store, options.collector ?? createCollector({ fetch: safeFetch, now: this.now }), this.now);
+    this.artifacts = new ArtifactStore(this.stateDir);
+    this.engine = new ScannerEngine(this.store, options.collector ?? createCollector({ fetch: safeFetch, now: this.now }), this.now, undefined, this.artifacts);
   }
 
   async init(): Promise<void> {
@@ -90,6 +93,7 @@ export class Runtime {
       runs++;
     }
     if (now.getTime() >= this.nextMaintenanceAt) {
+      this.store.pruneArtifacts(now.toISOString(), this.artifacts);
       this.store.prune(new Date(now.getTime() - 180 * 86_400_000).toISOString(), new Date(now.getTime() - 30 * 86_400_000).toISOString());
       this.nextMaintenanceAt = now.getTime() + RETENTION_INTERVAL_MS;
     }

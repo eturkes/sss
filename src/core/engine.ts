@@ -6,6 +6,7 @@ import { assessItem, type AssessmentResult } from "../codex/assess.ts";
 import { safeErrorMessage } from "../security/text.ts";
 import { MAX_SOURCE_ITEMS } from "../sources/types.ts";
 import { LeaseLostError, Store } from "../store/database.ts";
+import type { ArtifactStore } from "../store/artifacts.ts";
 
 export type RunResult = {
   runId?: string;
@@ -26,12 +27,14 @@ export class ScannerEngine {
   readonly collect: Collector;
   readonly now: () => Date;
   readonly assess: ItemAssessor;
+  readonly artifacts: ArtifactStore | undefined;
 
-  constructor(store: Store, collect: Collector, now: () => Date = () => new Date(), assess: ItemAssessor = assessItem) {
+  constructor(store: Store, collect: Collector, now: () => Date = () => new Date(), assess: ItemAssessor = assessItem, artifacts?: ArtifactStore) {
     this.store = store;
     this.collect = collect;
     this.now = now;
     this.assess = assess;
+    this.artifacts = artifacts;
   }
 
   async run(monitor: Monitor, namespace: string, options: { dryRun?: boolean; scheduledFor?: string; monitorLeaseToken?: string } = {}): Promise<RunResult> {
@@ -172,6 +175,12 @@ export class ScannerEngine {
         }
 
         const accepted = items.map((item) => ({ ...item, hash: sha256(rawBaseline ? assessmentJson(item.data) : canonicalJson(item.data)) }));
+        if (monitor.artifacts) {
+          if (!this.artifacts) throw new Error("observation artifact storage is unavailable");
+          const createdAt = this.now();
+          const content = this.artifacts.put(collection);
+          this.store.recordArtifact(runId, content, createdAt.toISOString(), new Date(createdAt.getTime() + monitor.artifacts.retentionDays * 86_400_000).toISOString());
+        }
         this.store.acceptItems(runId, monitor.id, namespace, accepted, observedAt);
         for (const event of created) this.store.insertEvent(event, notificationTargets(monitor, event.kind));
         const status = created.length > 0 ? "ok_changed" : "ok_unchanged";

@@ -563,6 +563,7 @@ export const monitorSchema = z
     rules: z.array(ruleSchema).min(1),
     notifications: z.array(notificationSchema).optional(),
     health: healthSchema.optional(),
+    artifacts: z.object({ retentionDays: z.number().int().min(1).max(365) }).strict().optional(),
   })
   .strict()
   .superRefine((monitor, context) => {

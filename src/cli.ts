@@ -81,6 +81,13 @@ async function main(command: string, args: string[]): Promise<void> {
       else for (const delivery of deliveries) process.stdout.write(`${delivery["status"]} ${delivery["channel"]} · attempts ${delivery["attempts"]} · next ${delivery["next_attempt_at"]}${delivery["last_error"] ? ` · ${stripControlText(String(delivery["last_error"]))}` : ""}\n`);
       return;
     }
+    if (command === "artifacts") {
+      const monitor = args[0]?.startsWith("--") ? undefined : args[0];
+      const artifacts = runtime.store.artifacts(monitor, numberOption(args, "--limit", 100)).map(entry => ({ ...entry, path: runtime.artifacts.path(entry.digest) }));
+      if (jsonFlag(args)) process.stdout.write(`${JSON.stringify(artifacts, null, 2)}\n`);
+      else for (const artifact of artifacts) process.stdout.write(`${artifact.createdAt} ${artifact.monitorId} · ${artifact.bytes} bytes · expires ${artifact.retainUntil} · ${artifact.path}\n`);
+      return;
+    }
     if (command === "doctor") {
       await doctor(runtime);
       return;
@@ -240,6 +247,8 @@ Commands:
   history MONITOR [ITEM] [--json] [--limit N]
                                     Show accepted observations.
   deliveries [--json] [--limit N]   Show pending and failed deliveries.
+  artifacts [MONITOR] [--json] [--limit N]
+                                    Show retained observation artifacts.
   doctor                            Check runtime dependencies and configuration.
   draft 'watch …'                   Ask isolated Codex to create a recipe.
   serve [--port 7337]               Run the dashboard and background workers.

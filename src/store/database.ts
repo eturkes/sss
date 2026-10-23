@@ -3,6 +3,7 @@ import { chmodSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { ChangeEvent, JsonObject, MonitorStatus, RunStatus, ScanItem } from "../core/types.ts";
+import type { ArtifactContent, ArtifactStore } from "./artifacts.ts";
 
 type SqlValue = string | number | bigint | null | Uint8Array;
 type ExistingItem = { item_key: string; content_hash: string; data_json: string; title: string | null; url: string | null };
@@ -57,6 +58,14 @@ CREATE TABLE IF NOT EXISTS runs (
   UNIQUE(monitor_id, scheduled_for)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS runs_monitor_started ON runs(monitor_id, started_at DESC);
+CREATE TABLE IF NOT EXISTS artifact_refs (
+  run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+  digest TEXT NOT NULL,
+  bytes INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  retain_until TEXT NOT NULL
+) STRICT;
+CREATE INDEX IF NOT EXISTS artifacts_retention ON artifact_refs(retain_until);
 CREATE UNIQUE INDEX IF NOT EXISTS runs_one_running ON runs(monitor_id) WHERE status='running';
 CREATE TABLE IF NOT EXISTS namespaces (
   monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
@@ -482,6 +491,26 @@ export class Store {
     return this.db.prepare("SELECT * FROM runs ORDER BY started_at DESC LIMIT ?").all(limit) as Array<Record<string, SqlValue>>;
   }
 
+  recordArtifact(runId: string, content: ArtifactContent, createdAt: string, retainUntil: string): void {
+    this.db.prepare("INSERT INTO artifact_refs(run_id,digest,bytes,created_at,retain_until) VALUES(?,?,?,?,?)")
+      .run(runId, content.digest, content.bytes, createdAt, retainUntil);
+  }
+
+  artifacts(monitorId?: string, limit = 100): Array<ArtifactContent & { runId: string; monitorId: string; createdAt: string; retainUntil: string }> {
+    const rows = this.db.prepare(`SELECT a.*, r.monitor_id FROM artifact_refs a JOIN runs r ON r.id=a.run_id
+      WHERE (? IS NULL OR r.monitor_id=?) ORDER BY a.created_at DESC,a.run_id LIMIT ?`).all(monitorId ?? null, monitorId ?? null, limit) as Array<Record<string, SqlValue>>;
+    return rows.map(row => ({ runId: String(row["run_id"]), monitorId: String(row["monitor_id"]), digest: String(row["digest"]),
+      bytes: Number(row["bytes"]), createdAt: String(row["created_at"]), retainUntil: String(row["retain_until"]) }));
+  }
+
+  pruneArtifacts(now: string, artifacts: ArtifactStore): void {
+    this.transaction(() => {
+      this.db.prepare("DELETE FROM artifact_refs WHERE retain_until<=?").run(now);
+      const rows = this.db.prepare("SELECT DISTINCT digest FROM artifact_refs").all() as Array<{ digest: string }>;
+      artifacts.prune(new Set(rows.map(row => row.digest)));
+    });
+  }
+
   prune(observationsBefore: string, runsBefore: string): void {
     this.transaction(() => {
       this.db.prepare(`DELETE FROM observations WHERE observed_at<? AND id NOT IN (
@@ -489,7 +518,8 @@ export class Store {
       )`).run(observationsBefore);
       this.db.prepare(`DELETE FROM runs WHERE started_at<? AND status!='running'
         AND id NOT IN (SELECT DISTINCT run_id FROM events)
-        AND id NOT IN (SELECT DISTINCT run_id FROM observations)`)
+        AND id NOT IN (SELECT DISTINCT run_id FROM observations)
+        AND id NOT IN (SELECT run_id FROM artifact_refs)`)
         .run(runsBefore);
       this.db.prepare("DELETE FROM deliveries WHERE status='sent' AND sent_at<?").run(runsBefore);
     });
