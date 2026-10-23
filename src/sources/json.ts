@@ -1,6 +1,6 @@
 import type { JsonObject } from "../core/types.ts";
 import { fetchJson } from "./http.ts";
-import { canonicalUrl, coerce, getPath, normalizeDate, record, setPath, stableItemId, stringAt, toJson } from "./normalize.ts";
+import { itemUrl, itemUrlAt, coerce, getPath, normalizeDate, record, setPath, stableItemId, stringAt, toJson } from "./normalize.ts";
 import { assertSourceItemLimit, finish, type Item, type JsonSource, type SourceDependencies } from "./types.ts";
 
 type JsonFieldSpec = string | {
@@ -20,11 +20,10 @@ export async function collectJson(source: JsonSource, dependencies: SourceDepend
 }
 
 function jsonItem(value: unknown, fields: Record<string, JsonFieldSpec> | undefined, baseUrl: string, singleton: boolean): Item {
-  const data = fields ? mapFields(value, fields) : objectData(value);
+  const data = fields ? mapFields(value, fields, baseUrl) : objectData(value);
   const title = stringAt(data, "title", "name");
-  const rawUrl = stringAt(data, "url", "link", "landingPageUrl");
-  const url = canonicalUrl(rawUrl, baseUrl);
-  if (url && rawUrl !== url) {
+  const url = itemUrlAt(data, baseUrl, "url", "link", "landingPageUrl");
+  if (url) {
     if (stringAt(data, "url") !== undefined) setPath(data, "url", url);
     else if (stringAt(data, "link") !== undefined) setPath(data, "link", url);
   }
@@ -40,7 +39,7 @@ function jsonItem(value: unknown, fields: Record<string, JsonFieldSpec> | undefi
   });
   if (id.startsWith("sha256:")) {
     if (!singleton) throw new Error("JSON list item lacks a stable identity field");
-    id = `source:${canonicalUrl(baseUrl) ?? baseUrl}`;
+    id = `source:${itemUrl(baseUrl) ?? baseUrl}`;
   }
   return {
     id,
@@ -51,12 +50,16 @@ function jsonItem(value: unknown, fields: Record<string, JsonFieldSpec> | undefi
   };
 }
 
-function mapFields(value: unknown, fields: Record<string, JsonFieldSpec>): JsonObject {
+function mapFields(value: unknown, fields: Record<string, JsonFieldSpec>, baseUrl: string): JsonObject {
   const result: JsonObject = {};
   for (const [target, config] of Object.entries(fields)) {
     const spec = typeof config === "string" ? { path: config } : config;
     const raw = getPath(value, spec.path);
-    setPath(result, target, raw === undefined ? null : coerce(raw, spec.type, spec.currency));
+    let mapped = raw === undefined ? null : coerce(raw, spec.type, spec.currency);
+    if (typeof mapped === "string" && /(?:^|\.)(?:url|link|href|landingPageUrl)$/.test(target)) {
+      mapped = itemUrl(raw, baseUrl) ?? mapped;
+    }
+    setPath(result, target, mapped);
   }
   return result;
 }

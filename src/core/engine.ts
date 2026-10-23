@@ -81,7 +81,8 @@ export class ScannerEngine {
     }
 
     const sourceItems = structuredClone(collection.items);
-    const rawBaseline = monitor.source.type === "x";
+    // Feed markup can contain URL fragments whose Unicode and spacing are meaningful.
+    const rawBaseline = ["x", "feed", "sel4_news"].includes(monitor.source.type);
     const items = rawBaseline ? sourceItems : sourceItems.map((item) => ({ ...item, data: JSON.parse(canonicalJson(item.data)) as JsonObject }));
     if (dryRun) return { status: "ok_unchanged", items, events: [], dryRun: true };
     if (!runId || !runToken) throw new Error("invariant: persisted run has no lease");

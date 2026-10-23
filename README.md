@@ -98,8 +98,14 @@ health: { failuresBeforeAlert: 3 }
 | `playwright` | Renders anonymous dynamic pages. | Uses a fresh browser with public, read-only request interception. |
 | `browseros` | Reads signed-in or dynamic pages. | Uses direct, read-only MCP calls through a fixed local endpoint. |
 | `x` | Reads an account's posts and replies through BrowserOS Neo. | Paginates Latest search until an accepted post overlaps. |
+| `sel4_news` | Reads official seL4 news archives. | Traverses every publisher-listed year and preserves year-specific article anchors. |
 
 Prefer official APIs and feeds over page scraping. When a page needs an authenticated browser session, use BrowserOS.
+Item URLs retain fragment anchors because different sections can identify different records.
+Feed acquisition collapses exact duplicates. If one identity has conflicting records, the scan fails and preserves the accepted baseline.
+If a publisher shares destination URLs across announcements, set `source.identity: provider` on its feed recipe.
+This mode uses the publisher's RSS GUID or Atom ID. Every entry must have a nonempty ID.
+SSS preserves nested feed content and its link destinations through storage and email delivery.
 A scheduled BrowserOS recipe can navigate to and read allowed origins.
 It cannot click, fill forms, download, evaluate JavaScript, or access app connectors.
 
@@ -221,7 +227,11 @@ The sources cover:
 
 - arXiv papers in logic, programming languages, formal verification, model checking, theorem proving, and proof assistants;
 - release feeds for proof assistants, SMT solvers, program and hardware verifiers, and verified systems;
-- Formal Methods Europe, the Rocq community, Frama-C, the TLA+ Foundation, and the Archive of Formal Proofs.
+- Formal Methods Europe, the Rocq community, Frama-C, the TLA+ Foundation, the Archive of Formal Proofs, and seL4 news.
+
+Frama-C uses its authored feed IDs because several announcements share one destination URL.
+The seL4 news adapter reads the current index and every listed annual archive. It uses the publisher's year and article anchor for each permalink.
+The seL4 observations include article text, links, and image metadata. Image-only announcements remain visible without fetching their images.
 
 The digest includes prereleases and nightly releases when their release identities are new.
 The first accepted scan establishes each source's baseline without sending historical entries.

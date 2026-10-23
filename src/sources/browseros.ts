@@ -1,5 +1,5 @@
 import type { JsonObject } from "../core/types.ts";
-import { canonicalUrl, coerce, record, setPath, stableItemId } from "./normalize.ts";
+import { itemUrl, coerce, record, setPath, stableItemId } from "./normalize.ts";
 import {
   finish,
   type BrowserOsMcpClient,
@@ -25,7 +25,7 @@ export async function collectBrowserOs(source: BrowserOsSource, dependencies: So
     page = pageId(opened);
     if (page === undefined) throw new Error("BrowserOS did not return a page id");
     await checkedCall(client, "navigate", { action: "url", page, url: source.url });
-    const url = canonicalUrl(source.url);
+    const url = itemUrl(source.url);
     if (!url) throw new Error("BrowserOS source URL is invalid");
     const data: JsonObject = { url };
     if (source.fields) {

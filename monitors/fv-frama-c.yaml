@@ -8,6 +8,7 @@ schedule:
 source:
   type: feed
   url: https://www.frama-c.com/feed/everything.xml
+  identity: provider
 assertions:
   allowEmpty: true
   requiredFields:

@@ -1,6 +1,6 @@
 import type { JsonObject } from "../core/types.ts";
 import { fetchJson } from "./http.ts";
-import { canonicalUrl, cleanText, extractDoi, normalizeDate, record, stableItemId } from "./normalize.ts";
+import { canonicalUrl, itemUrl, cleanText, extractDoi, normalizeDate, record, stableItemId } from "./normalize.ts";
 import { assertSourceItemLimit, finish, type Item, type OpenAlexSource, type SourceDependencies } from "./types.ts";
 
 export const OPENALEX_WORKS_ENDPOINT = "https://api.openalex.org/works";
@@ -39,7 +39,7 @@ function openAlexItem(value: unknown): Item {
   const publishedAt = normalizeDate(work["publication_date"]);
   const primaryLocation = record(work["primary_location"]);
   const source = record(primaryLocation?.["source"]);
-  const url = canonicalUrl(primaryLocation?.["landing_page_url"] ?? work["doi"] ?? openAlexUrl);
+  const url = itemUrl(primaryLocation?.["landing_page_url"] ?? work["doi"] ?? openAlexUrl);
   const authors = Array.isArray(work["authorships"])
     ? work["authorships"].map((authorship) => cleanText(record(record(authorship)?.["author"])?.["display_name"])).filter((name): name is string => name !== undefined)
     : [];

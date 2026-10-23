@@ -5,6 +5,7 @@ import { z } from "zod";
 import { isCurrencyCode } from "../core/money.ts";
 import { arxivSourceSchema, crossrefSourceSchema } from "./research.ts";
 import { createPlaywrightSourceSchema } from "./playwright.ts";
+import { sel4NewsSourceSchema } from "./sel4.ts";
 
 export const SAFE_ID_PATTERN = /^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/;
 export const ENV_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
@@ -199,6 +200,7 @@ export const feedSourceSchema = z
   .object({
     type: z.literal("feed"),
     url: httpUrlSchema,
+    identity: z.literal("provider").optional(),
     headers: headersSchema.optional(),
     keywords: z.array(z.string().trim().min(1).max(200)).max(100).optional(),
     exclude: z.array(z.string().trim().min(1).max(200)).max(100).optional(),
@@ -306,6 +308,7 @@ export const sourceSchema = z.discriminatedUnion("type", [
   browserOsSourceSchema,
   arxivSourceSchema,
   crossrefSourceSchema,
+  sel4NewsSourceSchema,
   createPlaywrightSourceSchema(htmlSourceSchema),
   z.object({
     type: z.literal("x"),
@@ -324,6 +327,7 @@ export type XSource = Extract<Source, { type: "x" }>;
 export type SourceConfig = Source;
 export type { ArxivSource, CrossrefSource } from "./research.ts";
 export type { PlaywrightSource } from "./playwright.ts";
+export type { Sel4NewsSource } from "./sel4.ts";
 
 export const assertionsSchema = z
   .object({
@@ -630,19 +634,20 @@ export function semanticMonitorValue(monitor: Monitor, xAdapterVersion: XAdapter
 
 function effectiveSource(source: Source, xAdapterVersion: XAdapterVersion): Record<string, unknown> {
   if (source.type === "x") return { ...source, handle: source.handle.toLowerCase(), adapterVersion: xAdapterVersion };
+  if (source.type === "sel4_news") return { ...source, adapterVersion: 1 };
   if (source.type === "arxiv" || source.type === "crossref") return { ...source, perPage: source.perPage ?? 100, maxPages: source.maxPages ?? 100, adapterVersion: 1 };
   if (source.type === "feed") {
     const { includeKeywords: _include, excludeKeywords: _exclude, keywords, exclude, ...rest } = source;
-    return { ...rest, identityVersion: 2, keywords: sortedUnique(keywords ?? source.includeKeywords ?? []), exclude: sortedUnique(exclude ?? source.excludeKeywords ?? []) };
+    return { ...rest, identityVersion: 3, keywords: sortedUnique(keywords ?? source.includeKeywords ?? []), exclude: sortedUnique(exclude ?? source.excludeKeywords ?? []) };
   }
   if (source.type === "openalex") {
     const { filters: _filters, filter, perPage, ...rest } = source;
     const normalizedFilter = Object.fromEntries(Object.entries(filter ?? source.filters ?? {}).map(([name, value]) =>
       [name, Array.isArray(value) ? sortedUnique(value) : value],
     ));
-    return { ...rest, identityVersion: 2, filter: normalizedFilter, perPage: perPage ?? 50 };
+    return { ...rest, identityVersion: 3, filter: normalizedFilter, perPage: perPage ?? 50 };
   }
-  return { ...source, identityVersion: 2 };
+  return { ...source, identityVersion: 3 };
 }
 
 function sortedUnique(values: string[]): string[] {

@@ -13,6 +13,7 @@ export async function collectSource(source: Source, dependencies: SourceDependen
     case "x": return (await import("./x.ts")).collectX(source, dependencies, context);
     case "arxiv": return (await import("./arxiv.ts")).collectArxiv(source, dependencies);
     case "crossref": return (await import("./crossref.ts")).collectCrossref(source, dependencies);
+    case "sel4_news": return (await import("./sel4.ts")).collectSel4News(source, dependencies);
     case "playwright": return (await import("./playwright.ts")).collectPlaywright(source, dependencies);
   }
 }

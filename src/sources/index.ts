@@ -7,5 +7,6 @@ export * from "./openalex.ts";
 export * from "./types.ts";
 export * from "./arxiv.ts";
 export * from "./crossref.ts";
+export * from "./sel4.ts";
 export type { PlaywrightBrowserLauncher } from "./playwright.ts";
 export { collectSource, createCollector } from "./collect.ts";

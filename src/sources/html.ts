@@ -2,7 +2,7 @@ import { load } from "cheerio";
 
 import type { JsonObject } from "../core/types.ts";
 import { fetchText } from "./http.ts";
-import { canonicalUrl, coerce, normalizeDate, setPath, stableItemId, stringAt } from "./normalize.ts";
+import { itemUrl, itemUrlAt, coerce, normalizeDate, setPath, stableItemId, stringAt } from "./normalize.ts";
 import { assertSourceItemLimit, finish, type HtmlSource, type Item, type SourceDependencies } from "./types.ts";
 
 type HtmlFieldSpec = {
@@ -40,7 +40,7 @@ export async function collectHtml(source: HtmlSource, dependencies: SourceDepend
       if (raw === undefined) throw new Error(`HTML field ${target} is missing attribute ${spec.attribute}`);
       let value = raw === undefined ? null : coerce(raw, spec.type, spec.currency);
       if (typeof value === "string" && (spec.attribute === "href" || spec.attribute === "src" || /(?:^|\.)(?:url|link|href)$/.test(target))) {
-        value = canonicalUrl(value, response.url) ?? value;
+        value = itemUrl(raw, response.url) ?? value;
       }
       setPath(data, target, value);
     }
@@ -51,7 +51,7 @@ export async function collectHtml(source: HtmlSource, dependencies: SourceDepend
 
 function htmlItem(data: JsonObject, baseUrl: string, singleton: boolean): Item {
   const title = stringAt(data, "title", "name");
-  const url = canonicalUrl(stringAt(data, "url", "link", "href"), baseUrl);
+  const url = itemUrlAt(data, baseUrl, "url", "link", "href");
   const publishedAt = normalizeDate(stringAt(data, "publishedAt", "published", "date"));
   let id = stableItemId({
     doi: stringAt(data, "doi"),
@@ -62,7 +62,7 @@ function htmlItem(data: JsonObject, baseUrl: string, singleton: boolean): Item {
   });
   if (id.startsWith("sha256:")) {
     if (!singleton) throw new Error("HTML list item lacks a stable identity field");
-    id = `source:${canonicalUrl(baseUrl) ?? baseUrl}`;
+    id = `source:${itemUrl(baseUrl) ?? baseUrl}`;
   }
   return {
     id,

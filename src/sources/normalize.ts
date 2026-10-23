@@ -30,12 +30,20 @@ export function cleanText(value: unknown): string | undefined {
 }
 
 export function canonicalUrl(value: unknown, base?: string): string | undefined {
-  const text = cleanText(value);
-  if (!text) return undefined;
+  return normalizeUrl(value, base, false);
+}
+
+export function itemUrl(value: unknown, base?: string): string | undefined {
+  return normalizeUrl(value, base, true);
+}
+
+function normalizeUrl(value: unknown, base: string | undefined, preserveFragment: boolean): string | undefined {
+  const text = preserveFragment ? rawUrlText(value) : cleanText(value);
+  if (!text || /^[\u0000-\u0020]*$/u.test(text)) return undefined;
   try {
     const url = base === undefined ? new URL(text) : new URL(text, base);
     if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
-    url.hash = "";
+    if (!preserveFragment || !url.hash) url.hash = "";
     for (const name of [...url.searchParams.keys()]) {
       if (TRACKING_PARAMETERS.test(name)) url.searchParams.delete(name);
     }
@@ -44,6 +52,20 @@ export function canonicalUrl(value: unknown, base?: string): string | undefined 
   } catch {
     return undefined;
   }
+}
+
+function rawUrlText(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  const object = record(value);
+  return object ? rawUrlText(object["#text"] ?? object["_text"] ?? object["value"]) : undefined;
+}
+
+export function itemUrlAt(data: JsonObject, base: string, ...paths: string[]): string | undefined {
+  for (const path of paths) {
+    const value = rawUrlText(getPath(data, path));
+    if (value && !/^[\u0000-\u0020]*$/u.test(value)) return itemUrl(value, base);
+  }
+  return undefined;
 }
 
 export function normalizeDate(value: unknown): string | undefined {
@@ -56,7 +78,7 @@ export function normalizeDate(value: unknown): string | undefined {
 
 export function extractDoi(...values: unknown[]): string | undefined {
   for (const value of values) {
-    const text = cleanText(value);
+    const text = cleanText(canonicalUrl(value) ?? value);
     if (!text) continue;
     let decoded = text;
     try {
@@ -93,7 +115,7 @@ export function stableItemId(input: {
   if (doi) return `doi:${doi}`;
   const arxiv = extractArxiv(input.arxiv, input.url, input.explicit);
   if (arxiv) return `arxiv:${arxiv}`;
-  const url = canonicalUrl(input.url);
+  const url = itemUrl(input.url);
   if (url) return `url:${url}`;
   const explicit = cleanText(input.explicit);
   if (explicit) return `id:${explicit.normalize("NFKC")}`;

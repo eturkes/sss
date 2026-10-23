@@ -12,6 +12,10 @@ description: Author, debug, or extend Super Smart Scanner monitor recipes and ad
 5. Run `pnpm sss validate ID|PATH`, then `pnpm sss test ID|PATH`; degraded/skipped exits nonzero. Explain extracted identities/fields before enabling.
 6. Run the repository gate from `AGENTS.md`; preserve fixture-backed regression coverage.
 
+Item URL identity = preserve publisher fragment anchors + strip tracking parameters. Resource-only URLs may drop fragments; keep that normalization separate. Feeds collapse exact duplicate observations and reject conflicting payloads for one identity before keyword filtering. Shared-page/reused-GUID feeds need a stable official alternate source; use publisher permalinks, never mutable text/content hashes as invented identities.
+
+Shared feed destination + unique authored IDs = `source.identity:provider`; require every GUID/Atom ID, preserve opaque strings, reject conflicts. Frama-C uses this mode. Nested feed text/markup/link destinations must survive acquisition → accepted state → digest unchanged. seL4 news = `sel4_news`; acquire current index + every listed year, use canonical year/anchor URLs, retain body links + inert image metadata. Empty/malformed stories, missing archives, catalog drift + bounds degrade without replacing the baseline.
+
 Research = `crossref` cursor or `arxiv` offset source; bounded complete query + fixed time bound; count drift/duplicate identities/incomplete pages degrade. Narrow oversized queries. Selective semantic alerts = sole `llm_assessment` rule with `mode:semantic`, trusted `target`/`prompt`, exact assessment model/effort; omit reset `product`. Parallel deterministic rules keep their own event behavior.
 
 Ongoing arXiv monitoring = `lookbackDays` rolling submission window; freeze lower/upper bounds through complete traversal. Select a window longer than expected downtime; expire old candidates without deleting accepted identities. Formal-verification bundled sources = `monitors/fv-*.yaml`; live batch dry run = `node scripts/check-formal-verification.ts` (ephemeral state, no inference/delivery).
