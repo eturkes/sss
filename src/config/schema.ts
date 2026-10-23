@@ -518,12 +518,19 @@ function requireSecureNotification(
 }
 
 const emailAddressSchema = z.email().max(254).regex(/^[^\s<>\u0000-\u001f\u007f]+$/);
+const digestScheduleSchema = z.object({
+  cron: z.string().trim().min(1).max(256),
+  timezone: z.string().trim().min(1).max(100).optional(),
+}).strict().superRefine((schedule, context) => {
+  if (!scheduleSchema.safeParse(schedule).success) context.addIssue({ code: "custom", message: "invalid digest cron/timezone" });
+});
 export const emailNotificationSchema = z.object({
   ...notificationBaseShape,
   type: z.literal("email"),
   to: emailAddressSchema,
   from: emailAddressSchema.optional(),
   account: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/).optional(),
+  digest: z.object({ id: idSchema, schedule: digestScheduleSchema }).strict().optional(),
 }).strict();
 
 export const notificationSchema = z.discriminatedUnion("type", [
@@ -626,16 +633,16 @@ function effectiveSource(source: Source, xAdapterVersion: XAdapterVersion): Reco
   if (source.type === "arxiv" || source.type === "crossref") return { ...source, perPage: source.perPage ?? 100, maxPages: source.maxPages ?? 100, adapterVersion: 1 };
   if (source.type === "feed") {
     const { includeKeywords: _include, excludeKeywords: _exclude, keywords, exclude, ...rest } = source;
-    return { ...rest, keywords: sortedUnique(keywords ?? source.includeKeywords ?? []), exclude: sortedUnique(exclude ?? source.excludeKeywords ?? []) };
+    return { ...rest, identityVersion: 2, keywords: sortedUnique(keywords ?? source.includeKeywords ?? []), exclude: sortedUnique(exclude ?? source.excludeKeywords ?? []) };
   }
   if (source.type === "openalex") {
     const { filters: _filters, filter, perPage, ...rest } = source;
     const normalizedFilter = Object.fromEntries(Object.entries(filter ?? source.filters ?? {}).map(([name, value]) =>
       [name, Array.isArray(value) ? sortedUnique(value) : value],
     ));
-    return { ...rest, filter: normalizedFilter, perPage: perPage ?? 50 };
+    return { ...rest, identityVersion: 2, filter: normalizedFilter, perPage: perPage ?? 50 };
   }
-  return source;
+  return { ...source, identityVersion: 2 };
 }
 
 function sortedUnique(values: string[]): string[] {

@@ -1,0 +1,36 @@
+version: 1
+id: fv-papers
+name: Formal verification · research papers
+enabled: true
+schedule:
+  cron: 30 * * * *
+  timezone: Asia/Tokyo
+source:
+  type: arxiv
+  query: cat:cs.LO OR cat:cs.PL OR all:"formal verification" OR all:"formal methods"
+    OR all:"model checking" OR all:"theorem proving" OR all:"proof assistant"
+  lookbackDays: 30
+  perPage: 200
+  maxPages: 50
+assertions:
+  allowEmpty: true
+  requiredFields:
+    - title
+    - url
+rules:
+  - id: new-observations
+    type: new_items
+    bootstrap: suppress_existing
+notifications:
+  - type: inbox
+  - type: email
+    account: gmail
+    from: emiru.tarukesu@gmail.com
+    to: emiru.tarukesu@gmail.com
+    digest:
+      id: formal-verification
+      schedule:
+        cron: 0 9 * * *
+        timezone: Asia/Tokyo
+health:
+  failuresBeforeAlert: 3

@@ -1,4 +1,4 @@
-import { XMLParser } from "fast-xml-parser";
+import { XMLParser, XMLValidator } from "fast-xml-parser";
 
 import type { JsonObject } from "../core/types.ts";
 import { fetchText } from "./http.ts";
@@ -31,6 +31,7 @@ export async function collectFeed(source: FeedSource, dependencies: SourceDepend
     "application/atom+xml, application/rss+xml, application/xml;q=0.9, text/xml;q=0.8",
   );
   const xml = response.text;
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml) !== true) throw new Error("feed returned invalid or unsafe XML");
   let parsed: unknown;
   try {
     parsed = (parser as { parse: (source: string) => unknown }).parse(xml);
@@ -49,13 +50,20 @@ export async function collectFeed(source: FeedSource, dependencies: SourceDepend
 function feedEntries(parsed: unknown): Record<string, unknown>[] {
   const root = record(parsed);
   if (!root) throw new Error("feed root must be an object");
-  const rss = record(root["rss"]);
-  const channel = record(rss?.["channel"] ?? root["channel"]);
-  const atom = record(root["feed"]);
-  const rdf = record(root["RDF"]);
-  if (!channel && !atom && !rdf) throw new Error("response is not an RSS or Atom feed");
-  const entries = channel?.["item"] ?? atom?.["entry"] ?? rdf?.["item"];
-  return array(entries).map(record).filter((entry): entry is Record<string, unknown> => entry !== undefined);
+  const roots = Object.keys(root).filter(key => !key.startsWith("?"));
+  const kind = roots[0];
+  if (roots.length !== 1 || kind !== "rss" && kind !== "feed" && kind !== "RDF") throw new Error("response is not an RSS or Atom feed");
+  const value = root[kind];
+  const container = value === "" ? {} : record(value);
+  if (!container) throw new Error("response is not an RSS or Atom feed");
+  const channel = container["channel"] === "" ? {} : record(container["channel"]);
+  if (kind === "rss" && !channel) throw new Error("feed lacks a valid RSS channel");
+  const entries = kind === "rss" ? channel?.["item"] : container[kind === "feed" ? "entry" : "item"];
+  return array(entries).map(value => {
+    const entry = record(value);
+    if (!entry) throw new Error("feed entry must be a record");
+    return entry;
+  });
 }
 
 function feedItem(entry: Record<string, unknown>, feedUrl: string): Item {

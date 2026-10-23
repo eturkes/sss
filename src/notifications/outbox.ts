@@ -4,7 +4,7 @@ import { formatMinorUnits } from "../core/money.ts";
 import { Store } from "../store/database.ts";
 import { safeRequest } from "../security/network.ts";
 import { safeErrorMessage, stripControlText } from "../security/text.ts";
-import { sendEmail } from "./email.ts";
+import { sendEmail, sendEmailDigest, type EmailDigest } from "./email.ts";
 
 type Notification = {
   type: string;
@@ -77,9 +77,11 @@ export async function drainOutbox(
   store: Store,
   time: Date | (() => Date) = () => new Date(),
   deliverOne: typeof deliver = deliver,
+  deliverDigest: (digest: EmailDigest) => Promise<void> = sendEmailDigest,
 ): Promise<{ sent: number; failed: number }> {
   const clock = typeof time === "function" ? time : () => time;
   const now = clock();
+  store.syncEmailDigests(now.toISOString());
   const leaseUntil = new Date(now.getTime() + 5 * 60_000).toISOString();
   const rows = store.claimDeliveries(now.toISOString(), leaseUntil, 1);
   let sent = 0;
@@ -98,6 +100,18 @@ export async function drainOutbox(
       const delay = Math.min(86_400_000, 30_000 * 2 ** Math.min(row.attempts, 11));
       const outcomeAt = clock();
       if (store.failDelivery(row.id, row.leaseToken, safeErrorMessage(error), new Date(outcomeAt.getTime() + delay).toISOString())) failed++;
+    }
+  }
+  const digests = store.claimEmailDigests(clock().toISOString(), new Date(clock().getTime() + 5 * 60_000).toISOString());
+  for (const digest of digests) {
+    // Lease metadata is not message content; retries use the immutable snapshot.
+    const { attempts, leaseToken, ...snapshot } = digest;
+    try {
+      await deliverDigest(snapshot);
+      if (store.finishEmailDigest(digest.id, leaseToken, clock().toISOString())) sent++;
+    } catch (error) {
+      const delay = Math.min(86_400_000, 30_000 * 2 ** Math.min(attempts, 11));
+      if (store.failEmailDigest(digest.id, leaseToken, safeErrorMessage(error), new Date(clock().getTime() + delay).toISOString())) failed++;
     }
   }
   return { sent, failed };

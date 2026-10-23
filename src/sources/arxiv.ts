@@ -22,8 +22,12 @@ export async function collectArxiv(input: ArxivSource, dependencies: ArxivDepend
   const frozen = new Date((dependencies.now ?? (() => new Date()))().getTime() - 60_000);
   const upperBound = frozen.toISOString().slice(0, 16).replace(/[-T:]/g, "");
   const upperTime = Date.parse(`${frozen.toISOString().slice(0, 16)}:59.999Z`);
+  const lowerMinute = source.lookbackDays === undefined ? undefined
+    : new Date(frozen.getTime() - source.lookbackDays * 86_400_000).toISOString().slice(0, 16);
+  const lowerBound = lowerMinute?.replace(/[-T:]/g, "") ?? "199001010000";
+  const lowerTime = Date.parse(lowerMinute ? `${lowerMinute}:00.000Z` : "1990-01-01T00:00:00.000Z");
   const url = new URL(ARXIV_QUERY_ENDPOINT);
-  url.searchParams.set("search_query", `(${source.query}) AND submittedDate:[199001010000 TO ${upperBound}]`);
+  url.searchParams.set("search_query", `(${source.query}) AND submittedDate:[${lowerBound} TO ${upperBound}]`);
   url.searchParams.set("max_results", String(perPage));
   url.searchParams.set("sortBy", "submittedDate");
   url.searchParams.set("sortOrder", "ascending");
@@ -49,7 +53,7 @@ export async function collectArxiv(input: ArxivSource, dependencies: ArxivDepend
     for (const entry of entries) {
       const item = arxivItem(entry);
       if (identities.has(item.id)) throw new Error("arXiv pagination repeated an article identity");
-      if (item.publishedAt! < priorPublished || Date.parse(item.publishedAt!) > upperTime) throw new Error("arXiv result violates the frozen submission order/bound");
+      if (item.publishedAt! < priorPublished || Date.parse(item.publishedAt!) < lowerTime || Date.parse(item.publishedAt!) > upperTime) throw new Error("arXiv result violates the frozen submission order/bound");
       priorPublished = item.publishedAt!;
       identities.add(item.id);
       items.push(item);

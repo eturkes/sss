@@ -1,0 +1,32 @@
+version: 1
+id: fv-cvc5
+name: Formal verification · cvc5 releases
+enabled: true
+schedule:
+  cron: 15 * * * *
+  timezone: Asia/Tokyo
+source:
+  type: feed
+  url: https://github.com/cvc5/cvc5/releases.atom
+assertions:
+  allowEmpty: true
+  requiredFields:
+    - title
+    - url
+rules:
+  - id: new-observations
+    type: new_items
+    bootstrap: suppress_existing
+notifications:
+  - type: inbox
+  - type: email
+    account: gmail
+    from: emiru.tarukesu@gmail.com
+    to: emiru.tarukesu@gmail.com
+    digest:
+      id: formal-verification
+      schedule:
+        cron: 0 9 * * *
+        timezone: Asia/Tokyo
+health:
+  failuresBeforeAlert: 3

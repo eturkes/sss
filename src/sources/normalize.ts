@@ -75,7 +75,8 @@ export function extractArxiv(...values: unknown[]): string | undefined {
   for (const value of values) {
     const text = cleanText(value);
     if (!text) continue;
-    const match = /(?:arxiv:\s*|arxiv\.org\/(?:abs|pdf)\/)?((?:[a-z][a-z0-9.-]*\/[0-9]{7}|[0-9]{4}\.[0-9]{4,5}))(?:v[0-9]+)?(?:\.pdf)?/i.exec(text);
+    // Provider IDs and release URLs can contain arXiv-shaped substrings.
+    const match = /^(?:arxiv:\s*|(?:https?:\/\/)?(?:(?:www|export)\.)?arxiv\.org\/(?:abs|pdf)\/)?((?:[a-z][a-z0-9.-]*\/[0-9]{7}|[0-9]{4}\.[0-9]{4,5}))(?:v[0-9]+)?(?:\.pdf)?(?:[?#].*)?$/i.exec(text);
     if (match?.[1]) return match[1].toLowerCase();
   }
   return undefined;

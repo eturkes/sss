@@ -16,7 +16,10 @@ export const crossrefSourceSchema = z.object({
   ...pagination,
 }).strict();
 
-export const arxivSourceSchema = z.object({ type: z.literal("arxiv"), query, ...pagination }).strict();
+export const arxivSourceSchema = z.object({
+  type: z.literal("arxiv"), query, ...pagination,
+  lookbackDays: z.number().int().min(1).max(365).optional(),
+}).strict();
 
 export type CrossrefSource = z.infer<typeof crossrefSourceSchema>;
 export type ArxivSource = z.infer<typeof arxivSourceSchema>;

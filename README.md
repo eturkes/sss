@@ -104,6 +104,7 @@ A scheduled BrowserOS recipe can navigate to and read allowed origins.
 It cannot click, fill forms, download, evaluate JavaScript, or access app connectors.
 
 Crossref and arXiv use `query`, optional `perPage` (default `100`), and optional `maxPages` (default `100`).
+arXiv also accepts `lookbackDays` from `1` to `365`. This option freezes a rolling submission window for each complete scan.
 Crossref also accepts a `filter` mapping. SSS reserves `until-index-date` for the scan bound.
 Each scan must acquire the complete bounded query. A changed count, repeated identity, missing page, or limit degrades the scan.
 The hard limit is 10,000 items. Narrow a query that exceeds the limit.
@@ -159,7 +160,7 @@ When the first accepted value must trigger an existing condition, use `evaluate_
 If a valid query can return no items, set `assertions.allowEmpty: true`.
 Malformed feeds and login pages still degrade the run.
 
-A source, assertion, or rule change creates a new semantic namespace.
+A source, extraction-version, assertion, or rule change creates a new semantic namespace.
 SSS establishes a compatible baseline without an alert. Schedule, name, notification, and health changes keep existing state.
 Changing rule enablement re-primes the rule and prevents a false edge.
 
@@ -198,6 +199,42 @@ Reference secrets through environment variables. SSS removes their values from e
 
 Email uses `msmtp` and its existing account configuration. Email includes the source URL, complete observation, model judgment, and evidence.
 The optional `events` filter limits each channel to selected event kinds. The inbox still retains every event.
+
+For a scheduled email digest, add the same `digest` configuration to each participating email channel:
+
+```yaml
+digest:
+  id: formal-verification
+  schedule: { cron: '0 9 * * *', timezone: Asia/Tokyo }
+```
+
+Channels with the same digest ID, schedule, recipient, sender, and account share one email.
+The first email is due at the next scheduled time. Each email includes every queued event, its complete available content, and source health.
+SSS does not apply an item count or body-length cap to a digest. Acquisition safety limits still apply. An incomplete acquisition fails instead of accepting a truncated result.
+An empty digest reports that no new observations were queued. Check its source-health section for failed or missing scans.
+Failed emails retry with the same saved contents and message ID. New observations wait for the next digest.
+
+### Daily formal-verification digest
+
+The `monitors/fv-*.yaml` recipes collect updates each hour. They share one email digest at **09:00 Asia/Tokyo** through the configured Gmail account.
+The sources cover:
+
+- arXiv papers in logic, programming languages, formal verification, model checking, theorem proving, and proof assistants;
+- release feeds for proof assistants, SMT solvers, program and hardware verifiers, and verified systems;
+- Formal Methods Europe, the Rocq community, Frama-C, the TLA+ Foundation, and the Archive of Formal Proofs.
+
+The digest includes prereleases and nightly releases when their release identities are new.
+The first accepted scan establishes each source's baseline without sending historical entries.
+Later digests contain newly observed identities, with the available abstracts, feed content, and source links.
+Updated content at an existing identity does not create another entry.
+These feeds and queries do not cover every announcement in the field. Feed entries can expire between scans.
+The arXiv query uses a rolling 30-day submission window. An outage longer than that window can leave gaps.
+
+Run the live acquisition check without state changes or email:
+
+```bash
+node scripts/check-formal-verification.ts
+```
 
 Select **Mobile alerts** in the dashboard to configure your phone for ntfy.
 The guide shows each configured server and topic, subscription links, and environment variable names for authentication.

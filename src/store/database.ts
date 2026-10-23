@@ -1,9 +1,12 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { chmodSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { ChangeEvent, JsonObject, MonitorStatus, RunStatus, ScanItem } from "../core/types.ts";
 import type { ArtifactContent, ArtifactStore } from "./artifacts.ts";
+import { emailNotificationSchema, type EmailNotification } from "../config/schema.ts";
+import type { EmailDigest } from "../notifications/email.ts";
+import { nextOccurrence } from "../scheduler/schedule.ts";
 
 type SqlValue = string | number | bigint | null | Uint8Array;
 type ExistingItem = { item_key: string; content_hash: string; data_json: string; title: string | null; url: string | null };
@@ -13,6 +16,7 @@ export type RunLease = { id: string; token: string };
 export type DeliveryRow = { id: string; eventId: string; channel: string; configJson: string; attempts: number; leaseToken: string };
 export type ObservationRow = { runId: string; monitorId: string; namespace: string; itemId: string; hash: string; data: JsonObject; title: string | null; url: string | null; observedAt: string };
 export type DeliveryHealth = { pending: number; sending: number; failed: number; lastError: string | null };
+export type EmailDigestRow = EmailDigest & { attempts: number; leaseToken: string };
 
 export class LeaseLostError extends Error {
   readonly code = "SSS_LEASE_LOST";
@@ -144,6 +148,27 @@ CREATE TABLE IF NOT EXISTS deliveries (
   UNIQUE(event_id, channel)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS deliveries_pending ON deliveries(status, next_attempt_at);
+CREATE TABLE IF NOT EXISTS email_digest_routes (
+  id TEXT PRIMARY KEY,
+  config_json TEXT NOT NULL,
+  next_due_at TEXT,
+  active INTEGER NOT NULL DEFAULT 0,
+  monitors_json TEXT NOT NULL DEFAULT '[]'
+) STRICT;
+CREATE TABLE IF NOT EXISTS email_digest_batches (
+  id TEXT PRIMARY KEY,
+  route_id TEXT NOT NULL REFERENCES email_digest_routes(id),
+  scheduled_for TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT NOT NULL,
+  lease_until TEXT,
+  lease_token TEXT,
+  sent_at TEXT,
+  last_error TEXT
+) STRICT;
+CREATE INDEX IF NOT EXISTS email_digest_pending ON email_digest_batches(status,next_attempt_at);
 `;
 
 export class Store {
@@ -165,12 +190,15 @@ export class Store {
   private migrate(): void {
     const versionRow = this.db.prepare("PRAGMA user_version").get() as Record<string, SqlValue>;
     const version = Number(versionRow["user_version"]);
-    if (version > 3) throw new Error(`SSS database schema ${version} is newer than supported schema 3`);
+    if (version > 4) throw new Error(`SSS database schema ${version} is newer than supported schema 4`);
     this.transaction(() => {
       addColumn(this.db, "runs", "attempt_token", "TEXT");
       addColumn(this.db, "deliveries", "lease_token", "TEXT");
+      addColumn(this.db, "deliveries", "digest_route_id", "TEXT");
+      addColumn(this.db, "deliveries", "digest_batch_id", "TEXT");
+      this.db.exec("CREATE INDEX IF NOT EXISTS deliveries_digest ON deliveries(digest_route_id,digest_batch_id,status)");
       addColumn(this.db, "monitors", "health_alerted", "INTEGER NOT NULL DEFAULT 0");
-      this.db.exec("PRAGMA user_version = 3");
+      this.db.exec("PRAGMA user_version = 4");
     });
   }
 
@@ -397,10 +425,13 @@ export class Store {
     this.db.prepare(`INSERT OR IGNORE INTO events(id,monitor_id,run_id,namespace,rule_id,kind,item_key,title,url,reason,before_json,after_json,observed_at)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(event.id,event.monitorId,event.runId,event.namespace,event.ruleId,event.kind,event.itemId,
       event.title ?? null,event.url ?? null,event.reason,event.before === undefined ? null : JSON.stringify(event.before),JSON.stringify(event.after),event.observedAt);
-    const delivery = this.db.prepare(`INSERT OR IGNORE INTO deliveries(id,event_id,channel,config_json,next_attempt_at) VALUES(?,?,?,?,?)`);
+    const delivery = this.db.prepare(`INSERT OR IGNORE INTO deliveries(id,event_id,channel,config_json,next_attempt_at,digest_route_id) VALUES(?,?,?,?,?,?)`);
     for (const notification of notifications) {
       if (notification.channel === "inbox" || notification.channel.startsWith("inbox:")) continue;
-      delivery.run(`${event.id}:${notification.channel}`, event.id, notification.channel, JSON.stringify(notification.config), event.observedAt);
+      const raw = notification.config as { type?: string; digest?: unknown } | null;
+      const config = raw?.type === "email" && raw.digest !== undefined ? emailNotificationSchema.parse(raw) : undefined;
+      const digestRoute = config ? this.ensureEmailDigestRoute(config) : null;
+      delivery.run(`${event.id}:${notification.channel}`, event.id, notification.channel, JSON.stringify(notification.config), event.observedAt, digestRoute);
     }
   }
 
@@ -419,7 +450,7 @@ export class Store {
   claimDeliveries(now: string, leaseUntil: string, limit = 20): DeliveryRow[] {
     return this.transaction(() => {
       const rows = this.db.prepare(`SELECT id,event_id,channel,config_json,attempts FROM deliveries
-        WHERE next_attempt_at<=? AND ((status IN ('pending','failed') AND (lease_until IS NULL OR lease_until<?))
+        WHERE digest_route_id IS NULL AND next_attempt_at<=? AND ((status IN ('pending','failed') AND (lease_until IS NULL OR lease_until<?))
           OR (status='sending' AND lease_until<?)) ORDER BY next_attempt_at LIMIT ?`)
         .all(now, now, now, limit) as Array<Record<string, SqlValue>>;
       const claim = this.db.prepare("UPDATE deliveries SET status='sending',lease_until=?,lease_token=? WHERE id=?");
@@ -431,16 +462,133 @@ export class Store {
     });
   }
 
+  private ensureEmailDigestRoute(config: EmailNotification, now?: string): string {
+    if (!config.digest) throw new Error("digest route requires a schedule");
+    const route = {
+      type: "email" as const, to: config.to, ...(config.from ? { from: config.from } : {}),
+      ...(config.account ? { account: config.account } : {}),
+      digest: { id: config.digest.id, schedule: { cron: config.digest.schedule.cron, timezone: config.digest.schedule.timezone ?? "UTC" } },
+    };
+    const configJson = JSON.stringify(route);
+    const id = createHash("sha256").update(configJson).digest("hex");
+    this.db.prepare("INSERT OR IGNORE INTO email_digest_routes(id,config_json,next_due_at) VALUES(?,?,?)")
+      .run(id, configJson, now ? nextOccurrence(route.digest.schedule, new Date(now)).toISOString() : null);
+    return id;
+  }
+
+  syncEmailDigests(now: string): void {
+    this.transaction(() => {
+      this.db.exec("UPDATE email_digest_routes SET active=0,monitors_json='[]'");
+      const routes = new Map<string, MonitorStatus[]>();
+      const statuses = new Map(this.status().map(monitor => [monitor.id, monitor]));
+      const monitors = this.db.prepare("SELECT id,config_json FROM monitors WHERE enabled=1").all() as Array<Record<string, SqlValue>>;
+      for (const row of monitors) {
+        const monitor = JSON.parse(String(row["config_json"])) as { notifications?: unknown[] };
+        for (const notification of monitor.notifications ?? []) {
+          const parsed = emailNotificationSchema.safeParse(notification);
+          if (!parsed.success || parsed.data.enabled === false || !parsed.data.digest) continue;
+          const id = this.ensureEmailDigestRoute(parsed.data, now);
+          const members = routes.get(id) ?? [];
+          const status = statuses.get(String(row["id"]));
+          if (status && !members.some(member => member.id === status.id)) members.push(status);
+          routes.set(id, members);
+        }
+      }
+      for (const [id, members] of routes) {
+        this.db.prepare("UPDATE email_digest_routes SET active=1,monitors_json=? WHERE id=?").run(JSON.stringify(members), id);
+      }
+      const unscheduled = this.db.prepare("SELECT id,config_json FROM email_digest_routes WHERE next_due_at IS NULL").all() as Array<Record<string, SqlValue>>;
+      for (const route of unscheduled) {
+        const config = emailNotificationSchema.parse(JSON.parse(String(route["config_json"])) as unknown);
+        this.db.prepare("UPDATE email_digest_routes SET next_due_at=? WHERE id=?")
+          .run(nextOccurrence(config.digest!.schedule, new Date(now)).toISOString(), String(route["id"]));
+      }
+    });
+  }
+
+  claimEmailDigests(now: string, leaseUntil: string, limit = 1): EmailDigestRow[] {
+    return this.transaction(() => {
+      const routes = this.db.prepare(`SELECT id,config_json,next_due_at,monitors_json FROM email_digest_routes AS route
+        WHERE next_due_at<=? AND (active=1 OR EXISTS (
+          SELECT 1 FROM deliveries WHERE digest_route_id=route.id AND digest_batch_id IS NULL AND status!='sent'
+        )) AND NOT EXISTS (SELECT 1 FROM email_digest_batches WHERE route_id=route.id AND status!='sent')
+        ORDER BY next_due_at,id`).all(now) as Array<Record<string, SqlValue>>;
+      for (const route of routes) {
+        const config = emailNotificationSchema.parse(JSON.parse(String(route["config_json"])) as unknown);
+        if (!config.digest) throw new Error("digest route missing schedule");
+        const members = this.db.prepare(`SELECT delivery.id,delivery.event_id FROM deliveries AS delivery JOIN events AS event ON event.id=delivery.event_id
+          WHERE delivery.digest_route_id=? AND delivery.digest_batch_id IS NULL AND delivery.status!='sent' AND delivery.next_attempt_at<=?
+          ORDER BY event.observed_at,event.rowid,delivery.rowid`).all(String(route["id"]), now) as Array<Record<string, SqlValue>>;
+        const events = [...new Set(members.map(row => String(row["event_id"])))].map(id => this.event(id)!);
+        const snapshot: EmailDigest = {
+          id: randomUUID(), scheduledFor: String(route["next_due_at"]), config, events,
+          monitors: JSON.parse(String(route["monitors_json"])) as MonitorStatus[],
+        };
+        this.db.prepare(`INSERT INTO email_digest_batches(id,route_id,scheduled_for,snapshot_json,next_attempt_at) VALUES(?,?,?,?,?)`)
+          .run(snapshot.id, String(route["id"]), snapshot.scheduledFor, JSON.stringify(snapshot), now);
+        for (const member of members) this.db.prepare("UPDATE deliveries SET digest_batch_id=? WHERE id=?").run(snapshot.id, String(member["id"]));
+        this.db.prepare("UPDATE email_digest_routes SET next_due_at=? WHERE id=?")
+          .run(nextOccurrence(config.digest.schedule, new Date(now)).toISOString(), String(route["id"]));
+      }
+      const rows = this.db.prepare(`SELECT id,snapshot_json,attempts FROM email_digest_batches
+        WHERE next_attempt_at<=? AND (status IN ('pending','failed') OR (status='sending' AND lease_until<?))
+        ORDER BY scheduled_for,rowid LIMIT ?`).all(now, now, limit) as Array<Record<string, SqlValue>>;
+      return rows.map(row => {
+        const leaseToken = randomUUID();
+        this.db.prepare("UPDATE email_digest_batches SET status='sending',lease_until=?,lease_token=? WHERE id=?")
+          .run(leaseUntil, leaseToken, String(row["id"]));
+        this.db.prepare("UPDATE deliveries SET status='sending',lease_until=?,lease_token=? WHERE digest_batch_id=?")
+          .run(leaseUntil, leaseToken, String(row["id"]));
+        const snapshot = JSON.parse(String(row["snapshot_json"])) as EmailDigest;
+        snapshot.events = snapshot.events.map(event => ({ ...event, before: event.before }));
+        return { ...snapshot, attempts: Number(row["attempts"]), leaseToken };
+      });
+    });
+  }
+
+  finishEmailDigest(id: string, leaseToken: string, at: string): boolean {
+    return this.transaction(() => {
+      const result = this.db.prepare(`UPDATE email_digest_batches SET status='sent',sent_at=?,lease_until=NULL,lease_token=NULL,last_error=NULL
+        WHERE id=? AND status='sending' AND lease_token=?`).run(at, id, leaseToken);
+      if (result.changes !== 1) return false;
+      this.db.prepare("UPDATE deliveries SET status='sent',sent_at=?,lease_until=NULL,lease_token=NULL,last_error=NULL WHERE digest_batch_id=?")
+        .run(at, id);
+      return true;
+    });
+  }
+
+  failEmailDigest(id: string, leaseToken: string, error: string, nextAttemptAt: string): boolean {
+    return this.transaction(() => {
+      const result = this.db.prepare(`UPDATE email_digest_batches SET status='failed',attempts=attempts+1,last_error=?,next_attempt_at=?,lease_until=NULL,lease_token=NULL
+        WHERE id=? AND status='sending' AND lease_token=?`).run(error, nextAttemptAt, id, leaseToken);
+      if (result.changes !== 1) return false;
+      this.db.prepare("UPDATE deliveries SET status='failed',attempts=attempts+1,last_error=?,next_attempt_at=?,lease_until=NULL,lease_token=NULL WHERE digest_batch_id=?")
+        .run(error, nextAttemptAt, id);
+      return true;
+    });
+  }
+
   deliveryHealth(): DeliveryHealth {
-    const rows = this.db.prepare("SELECT status,COUNT(*) AS count FROM deliveries WHERE status!='sent' GROUP BY status").all() as Array<Record<string, SqlValue>>;
+    const rows = this.db.prepare(`SELECT status,COUNT(*) AS count FROM (
+      SELECT status FROM deliveries WHERE status!='sent'
+      UNION ALL SELECT status FROM email_digest_batches AS batch WHERE status!='sent'
+        AND NOT EXISTS (SELECT 1 FROM deliveries WHERE digest_batch_id=batch.id)
+    ) GROUP BY status`).all() as Array<Record<string, SqlValue>>;
     const counts = Object.fromEntries(rows.map((row) => [String(row["status"]), Number(row["count"])]));
-    const error = this.db.prepare("SELECT last_error FROM deliveries WHERE status='failed' ORDER BY next_attempt_at DESC LIMIT 1").get() as Record<string, SqlValue> | undefined;
+    const error = this.db.prepare(`SELECT last_error FROM (
+      SELECT last_error,next_attempt_at FROM deliveries WHERE status='failed'
+      UNION ALL SELECT last_error,next_attempt_at FROM email_digest_batches WHERE status='failed'
+    ) ORDER BY next_attempt_at DESC LIMIT 1`).get() as Record<string, SqlValue> | undefined;
     return { pending: counts["pending"] ?? 0, sending: counts["sending"] ?? 0, failed: counts["failed"] ?? 0, lastError: nullableString(error?.["last_error"]) };
   }
 
   failedDeliveries(limit = 100): Array<Record<string, SqlValue>> {
-    return this.db.prepare(`SELECT id,event_id,channel,status,attempts,next_attempt_at,last_error
-      FROM deliveries WHERE status!='sent' ORDER BY next_attempt_at LIMIT ?`).all(limit) as Array<Record<string, SqlValue>>;
+    return this.db.prepare(`SELECT id,event_id,channel,status,attempts,next_attempt_at,last_error FROM (
+      SELECT id,event_id,channel,status,attempts,next_attempt_at,last_error FROM deliveries WHERE status!='sent'
+      UNION ALL SELECT id,NULL AS event_id,'email:digest' AS channel,status,attempts,next_attempt_at,last_error
+        FROM email_digest_batches AS batch WHERE status!='sent'
+        AND NOT EXISTS (SELECT 1 FROM deliveries WHERE digest_batch_id=batch.id)
+    ) ORDER BY next_attempt_at LIMIT ?`).all(limit) as Array<Record<string, SqlValue>>;
   }
 
   event(id: string): ChangeEvent | undefined {
@@ -527,6 +675,10 @@ export class Store {
         AND id NOT IN (SELECT run_id FROM artifact_refs)`)
         .run(runsBefore);
       this.db.prepare("DELETE FROM deliveries WHERE status='sent' AND sent_at<?").run(runsBefore);
+      this.db.prepare("DELETE FROM email_digest_batches WHERE status='sent' AND sent_at<?").run(runsBefore);
+      this.db.exec(`DELETE FROM email_digest_routes WHERE active=0
+        AND id NOT IN (SELECT route_id FROM email_digest_batches)
+        AND id NOT IN (SELECT digest_route_id FROM deliveries WHERE digest_route_id IS NOT NULL)`);
     });
   }
 }
