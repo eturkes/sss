@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { CronExpressionParser } from "cron-parser";
 import { z } from "zod";
 import { isCurrencyCode } from "../core/money.ts";
+import { arxivSourceSchema, crossrefSourceSchema } from "./research.ts";
+import { createPlaywrightSourceSchema } from "./playwright.ts";
 
 export const SAFE_ID_PATTERN = /^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/;
 export const ENV_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
@@ -302,6 +304,9 @@ export const sourceSchema = z.discriminatedUnion("type", [
   htmlSourceSchema,
   openAlexSourceSchema,
   browserOsSourceSchema,
+  arxivSourceSchema,
+  crossrefSourceSchema,
+  createPlaywrightSourceSchema(htmlSourceSchema),
   z.object({
     type: z.literal("x"),
     handle: z.string().regex(/^[A-Za-z0-9_]{1,15}$/),
@@ -317,6 +322,8 @@ export type BrowserOsSource = z.infer<typeof browserOsSourceSchema>;
 export type Source = z.infer<typeof sourceSchema>;
 export type XSource = Extract<Source, { type: "x" }>;
 export type SourceConfig = Source;
+export type { ArxivSource, CrossrefSource } from "./research.ts";
+export type { PlaywrightSource } from "./playwright.ts";
 
 export const assertionsSchema = z
   .object({
@@ -416,10 +423,17 @@ export const assessmentRuleSchema = z.object({
   type: z.literal("llm_assessment"),
   trigger: z.enum(["new_item", "new_or_changed"]).optional(),
   product: z.enum(["codex", "claude"]).optional(),
+  mode: z.literal("semantic").optional(),
+  target: z.string().trim().min(1).max(1_000).optional(),
   model: z.literal("gpt-6.1-sol"),
   reasoningEffort: z.literal("xhigh"),
   prompt: z.string().trim().min(1).max(10_000),
-}).strict();
+}).strict().superRefine((rule, context) => {
+  if (rule.mode === "semantic") {
+    if (!rule.target) context.addIssue({ code: "custom", message: "semantic assessment requires a target", path: ["target"] });
+    if (rule.product !== undefined) context.addIssue({ code: "custom", message: "semantic assessment uses target, not product", path: ["product"] });
+  } else if (rule.target !== undefined) context.addIssue({ code: "custom", message: "target requires semantic assessment mode", path: ["target"] });
+});
 
 export const ruleSchema = z.discriminatedUnion("type", [
   newItemsRuleSchema,
@@ -608,6 +622,7 @@ export function semanticMonitorValue(monitor: Monitor, xAdapterVersion: XAdapter
 
 function effectiveSource(source: Source, xAdapterVersion: XAdapterVersion): Record<string, unknown> {
   if (source.type === "x") return { ...source, handle: source.handle.toLowerCase(), adapterVersion: xAdapterVersion };
+  if (source.type === "arxiv" || source.type === "crossref") return { ...source, perPage: source.perPage ?? 100, maxPages: source.maxPages ?? 100, adapterVersion: 1 };
   if (source.type === "feed") {
     const { includeKeywords: _include, excludeKeywords: _exclude, keywords, exclude, ...rest } = source;
     return { ...rest, keywords: sortedUnique(keywords ?? source.includeKeywords ?? []), exclude: sortedUnique(exclude ?? source.excludeKeywords ?? []) };

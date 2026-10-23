@@ -1,7 +1,6 @@
 import { lookup as dnsLookup } from "node:dns/promises";
 import type { LookupFunction } from "node:net";
 import ipaddr from "ipaddr.js";
-import { Agent, errors, request as undiciRequest } from "undici";
 import { redactUrl, safeErrorMessage, stripControlText } from "./text.ts";
 
 export const DEFAULT_MAX_BODY_BYTES = 4 * 1024 * 1024;
@@ -357,8 +356,7 @@ function transitionedRequest(
 }
 
 function isSizeError(error: unknown): boolean {
-  return error instanceof errors.ResponseExceededMaxSizeError ||
-    (typeof error === "object" && error !== null && "code" in error && error.code === "UND_ERR_RES_EXCEEDED_MAX_SIZE");
+  return typeof error === "object" && error !== null && "code" in error && error.code === "UND_ERR_RES_EXCEEDED_MAX_SIZE";
 }
 
 function abortable<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
@@ -442,6 +440,7 @@ export async function safeRequest(
       throw error;
     }
     const expectedHostname = bareHostname(validated.url.hostname);
+    const { Agent, errors, request: undiciRequest } = await import("undici");
     const agent = new Agent({
       autoSelectFamily: true,
       connect: {
@@ -513,7 +512,7 @@ export async function safeRequest(
       if (signal.aborted) {
         throw policyError("SSS_TIMEOUT", "Request exceeded the configured timeout");
       }
-      if (isSizeError(error)) {
+      if (error instanceof errors.ResponseExceededMaxSizeError || isSizeError(error)) {
         throw policyError("SSS_BODY_TOO_LARGE", "Response body exceeds the configured limit");
       }
       throw policyError(
@@ -544,6 +543,7 @@ export async function safeFetch(
   const acquired = await safeRequest(request.url, {
     headers,
     method: request.method,
+    ...(request.redirect === "error" ? { maxRedirects: 0 } : {}),
   });
   const responseHeaders = new Headers();
   for (const [name, value] of Object.entries(acquired.headers)) {

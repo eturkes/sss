@@ -1,0 +1,29 @@
+version: 1
+id: dynamic-page
+name: Dynamic public page
+enabled: false
+schedule:
+  every: 30m
+source:
+  type: playwright
+  url: https://example.com/products
+  waitForSelector: '[data-products-ready="true"]'
+  itemSelector: article.product
+  fields:
+    id:
+      attribute: data-product-id
+    title:
+      selector: h2
+    url:
+      selector: a
+      attribute: href
+assertions:
+  minItems: 1
+  requiredFields: [id, title, url]
+  uniqueBy: id
+rules:
+  - id: new-products
+    type: new_items
+    bootstrap: suppress_existing
+notifications:
+  - type: inbox

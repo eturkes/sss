@@ -9,7 +9,7 @@ import { drainOutbox } from "../notifications/outbox.ts";
 import { nextOccurrence } from "../scheduler/schedule.ts";
 import { safeFetch } from "../security/network.ts";
 import { safeErrorMessage } from "../security/text.ts";
-import { createCollector } from "../sources/index.ts";
+import { createCollector } from "../sources/collect.ts";
 import { Store } from "../store/database.ts";
 
 export type RuntimeOptions = { stateDir?: string; monitorsDir?: string; now?: () => Date; ephemeral?: boolean; collector?: Collector };

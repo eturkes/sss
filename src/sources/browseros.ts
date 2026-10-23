@@ -1,6 +1,3 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-
 import type { JsonObject } from "../core/types.ts";
 import { canonicalUrl, coerce, record, setPath, stableItemId } from "./normalize.ts";
 import {
@@ -84,6 +81,10 @@ export async function createBrowserOsNeoClient(_fetch: FetchLike): Promise<Brows
 }
 
 async function connectBrowserOs(endpoint: string): Promise<BrowserOsMcpClient> {
+  const [{ Client }, { StreamableHTTPClientTransport }] = await Promise.all([
+    import("@modelcontextprotocol/sdk/client/index.js"),
+    import("@modelcontextprotocol/sdk/client/streamableHttp.js"),
+  ]);
   const client = new Client({ name: "sss", version: "0.1.0" }, { capabilities: {} });
   const transport = new StreamableHTTPClientTransport(new URL(endpoint));
   // SDK 1.30's Transport declarations are exactOptional-incompatible under TS 7; runtime classes share the same package contract.

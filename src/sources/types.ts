@@ -8,6 +8,7 @@ import type {
   Source,
 } from "../config/schema.ts";
 import type { Collection, JsonObject, JsonValue, ScanItem } from "../core/types.ts";
+import type { PlaywrightBrowserLauncher } from "./playwright.ts";
 
 export type Item = ScanItem;
 export type Collected = Collection;
@@ -33,6 +34,7 @@ export type SourceDependencies = {
   now?: () => Date;
   env?: Readonly<Record<string, string | undefined>>;
   createBrowserOsClient?: (fetch: FetchLike) => Promise<BrowserOsMcpClient>;
+  launchPlaywrightBrowser?: PlaywrightBrowserLauncher;
 };
 
 export function resolvedHeaders(

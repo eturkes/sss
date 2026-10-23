@@ -1,0 +1,34 @@
+version: 1
+id: crossref-agent-evaluation
+name: Crossref agent evaluation research
+enabled: false
+schedule: { every: 6h }
+source:
+  type: crossref
+  query: autonomous coding agent evaluation
+  filter:
+    from-pub-date: "2026-10-01"
+    type: journal-article
+    has-abstract: true
+    issn: "2522-5839"
+  perPage: 100
+  maxPages: 10
+assertions:
+  allowEmpty: true
+  maxItems: 1000
+  requiredFields: [doi, title, abstract]
+rules:
+  - id: research-match
+    type: llm_assessment
+    trigger: new_item
+    mode: semantic
+    target: Reproducible evaluation of autonomous coding agents
+    model: gpt-6.1-sol
+    reasoningEffort: xhigh
+    prompt: >-
+      Match papers that report an evaluation of autonomous coding agents on reproducible
+      programming tasks. Use the observed title and abstract. Exclude work that only
+      mentions agents without evaluating them. State uncertainty when the abstract
+      does not establish the evaluation setting.
+notifications:
+  - { type: inbox }

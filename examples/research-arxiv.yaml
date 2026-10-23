@@ -1,0 +1,29 @@
+version: 1
+id: arxiv-agent-evaluation
+name: arXiv agent evaluation research
+enabled: false
+schedule: { every: 6h }
+source:
+  type: arxiv
+  query: 'all:"coding agent" AND submittedDate:[202610010000 TO 202612312359]'
+  perPage: 100
+  maxPages: 10
+assertions:
+  allowEmpty: true
+  maxItems: 1000
+  requiredFields: [arxivId, title, abstract, authors]
+rules:
+  - id: research-match
+    type: llm_assessment
+    trigger: new_item
+    mode: semantic
+    target: Reproducible evaluation of autonomous coding agents
+    model: gpt-6.1-sol
+    reasoningEffort: xhigh
+    prompt: >-
+      Match papers that report an evaluation of autonomous coding agents on reproducible
+      programming tasks. Use the observed title and abstract. Exclude work that only
+      mentions agents without evaluating them. State uncertainty when the abstract
+      does not establish the evaluation setting.
+notifications:
+  - { type: inbox }
