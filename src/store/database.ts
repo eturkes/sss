@@ -148,6 +148,7 @@ CREATE INDEX IF NOT EXISTS deliveries_pending ON deliveries(status, next_attempt
 
 export class Store {
   readonly db: DatabaseSync;
+  private transactionDepth = 0;
 
   constructor(path = ".sss/sss.db") {
     if (path !== ":memory:") {
@@ -176,15 +177,19 @@ export class Store {
   close(): void { this.db.close(); }
 
   transaction<T>(work: () => T): T {
-    this.db.exec("BEGIN IMMEDIATE");
+    const depth = this.transactionDepth++;
+    const savepoint = `sss_${depth}`;
+    try {
+      this.db.exec(depth ? `SAVEPOINT ${savepoint}` : "BEGIN IMMEDIATE");
+    } catch (error) { this.transactionDepth--; throw error; }
     try {
       const result = work();
-      this.db.exec("COMMIT");
+      this.db.exec(depth ? `RELEASE ${savepoint}` : "COMMIT");
       return result;
     } catch (error) {
-      this.db.exec("ROLLBACK");
+      this.db.exec(depth ? `ROLLBACK TO ${savepoint}; RELEASE ${savepoint}` : "ROLLBACK");
       throw error;
-    }
+    } finally { this.transactionDepth--; }
   }
 
   syncMonitor(

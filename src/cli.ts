@@ -96,7 +96,7 @@ async function main(command: string, args: string[]): Promise<void> {
       await runtime.sync();
       const port = numberOption(args, "--port", 7337);
       const server = command === "serve"
-        ? serve({ fetch: createApp(runtime.store, { run: (id) => runtime.runNow(id), sync: () => runtime.sync() }, { port }).fetch, hostname: "127.0.0.1", port })
+        ? serve({ fetch: createApp(runtime.store, { run: (id) => runtime.runNow(id), sync: () => runtime.sync(), recipe: id => runtime.recipe(id), saveRecipe: (id, source, revision) => runtime.saveRecipe(id, source, revision) }, { port }).fetch, hostname: "127.0.0.1", port })
         : undefined;
       if (command === "serve") {
         if (server && !server.listening) await new Promise<void>((resolveReady, rejectReady) => {

@@ -2,7 +2,7 @@ import { chmod, mkdir, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type { Monitor } from "../config/schema.ts";
-import { loadMonitorById, loadMonitorFiles, loadMonitorFile } from "../config/load.ts";
+import { loadMonitorById, loadMonitorFiles, loadMonitorFile, readRecipe, saveRecipe as saveRecipeFile } from "../config/load.ts";
 import { monitorSchema, semanticMonitorHash, X_ADAPTER_VERSION } from "../config/schema.ts";
 import { ScannerEngine, type Collector, type RunResult } from "../core/engine.ts";
 import { drainOutbox } from "../notifications/outbox.ts";
@@ -25,6 +25,9 @@ export class Runtime {
   readonly now: () => Date;
   readonly artifacts: ArtifactStore;
   private nextMaintenanceAt = 0;
+  private editingRecipe = false;
+  private recipeRecoveryRequired = false;
+  private recipeRevision = 0;
 
   constructor(options: RuntimeOptions = {}) {
     this.stateDir = resolve(options.stateDir ?? process.env["SSS_STATE_DIR"] ?? ".sss");
@@ -42,9 +45,12 @@ export class Runtime {
   }
 
   async sync(): Promise<Monitor[]> {
+    if (this.editingRecipe) throw new Error("a recipe edit is in progress");
+    const recipeRevision = this.recipeRevision;
     await this.init();
     const loaded = await loadMonitorFiles(this.monitorsDir);
     await Promise.all(loaded.map(({ filePath }) => chmod(filePath, 0o600)));
+    if (this.editingRecipe || recipeRevision !== this.recipeRevision) throw new Error("a recipe edit changed the configuration; retry synchronization");
     const ids: string[] = [];
     for (const { config } of loaded) {
       ids.push(config.id);
@@ -52,11 +58,16 @@ export class Runtime {
       this.syncMonitor(config, namespace, this.now().toISOString());
     }
     this.store.disableMissing(ids);
+    this.recipeRecoveryRequired = false;
     return loaded.map(({ config }) => config);
   }
 
   async run(idOrPath: string, dryRun = false): Promise<RunResult> {
+    if (this.recipeRecoveryRequired) throw new Error("recipes require reconciliation; run sss sync before scanning");
+    if (this.editingRecipe) throw new Error("a recipe edit is in progress");
+    const recipeRevision = this.recipeRevision;
     const config = await this.resolveMonitor(idOrPath);
+    if (this.editingRecipe || recipeRevision !== this.recipeRevision) throw new Error("a recipe edit changed the configuration; retry the scan");
     const namespace = semanticMonitorHash(config);
     if (dryRun) return this.engine.run(config, namespace, { dryRun: true });
     const now = this.now();
@@ -77,7 +88,36 @@ export class Runtime {
     return this.run(id);
   }
 
+  async recipe(id: string) { return readRecipe(this.monitorsDir, id); }
+
+  async saveRecipe(id: string, source: string, revision: string): Promise<Monitor> {
+    if (this.editingRecipe) throw new Error("a recipe edit is in progress");
+    this.editingRecipe = true;
+    this.recipeRevision++;
+    let fileReplaced = false;
+    try {
+      return await saveRecipeFile(this.monitorsDir, id, source, revision, (config, replace) => {
+        this.store.transaction(() => {
+          const running = this.store.db.prepare("SELECT 1 FROM runs WHERE monitor_id=? AND status='running'").get(id);
+          const claimed = this.store.status().find(monitor => monitor.id === id)?.leaseUntil;
+          if (running || claimed && claimed > this.now().toISOString()) throw new Error(`monitor ${id} has an active scan or claim`);
+          this.syncMonitor(config, semanticMonitorHash(config), this.now().toISOString());
+          replace();
+          fileReplaced = true;
+        });
+      });
+    } catch (error) {
+      if (fileReplaced) {
+        this.recipeRecoveryRequired = true;
+        throw new Error("recipe file was saved but database synchronization failed; scans wait for recipe reconciliation", { cause: error });
+      }
+      throw error;
+    } finally { this.editingRecipe = false; }
+  }
+
   async tick(): Promise<{ runs: number; deliveries: { sent: number; failed: number } }> {
+    if (this.editingRecipe) return { runs: 0, deliveries: { sent: 0, failed: 0 } };
+    if (this.recipeRecoveryRequired) await this.sync();
     const now = this.now();
     const claimed = this.store.claimDue(now.toISOString(), new Date(now.getTime() + MONITOR_LEASE_MS).toISOString(), 1);
     let runs = 0;
