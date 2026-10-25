@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { emailNotificationSchema, type EmailNotification } from "../config/schema.ts";
 import type { ChangeEvent, MonitorStatus } from "../core/types.ts";
 import { stripControlText } from "../security/text.ts";
+import { displayTime, eventContent, readableText, sourceHealth } from "./readable.ts";
 
 const HEADER_CONTROLS = /[\u0000-\u001F\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/u;
 
@@ -19,14 +20,12 @@ export function formatEmail(event: ChangeEvent, config: EmailNotification): stri
   const observed = new Date(event.observedAt);
   if (Number.isNaN(observed.getTime())) throw new Error("invalid email observation timestamp");
   const body = [
-    event.title ? stripControlText(event.title) : event.itemId,
-    stripControlText(event.reason),
+    readableText(event.title ?? event.itemId, event.url),
     ...(event.url ? [`Source: ${stripControlText(event.url)}`] : []),
-    `Observed: ${event.observedAt}`,
-    `Event: ${event.id}`,
+    `Observed: ${displayTime(event.observedAt)}`,
     "",
-    "Observation and assessment:",
-    stripControlText(JSON.stringify({ ...(event.before === undefined ? {} : { before: event.before }), after: event.after }, null, 2)),
+    ...(event.kind === "new_item" ? [stripControlText(event.reason)] : []),
+    ...eventContent(event),
   ].join("\n");
   const encodedBody = Buffer.from(body.replaceAll("\n", "\r\n"), "utf8").toString("base64");
   const messageId = createHash("sha256").update(event.id).digest("hex");
@@ -55,27 +54,24 @@ export function formatDigestEmail(digest: EmailDigest): string {
   const at = new Date(digest.scheduledFor);
   if (Number.isNaN(at.getTime())) throw new Error("invalid email digest timestamp");
   const title = config.digest.id.replaceAll("-", " ");
+  const timezone = config.digest.schedule.timezone ?? "UTC";
+  const healthEvents = digest.events.filter(event => event.kind === "health_degraded" || event.kind === "health_recovered");
+  const observations = digest.events.filter(event => event.kind !== "health_degraded" && event.kind !== "health_recovered");
   const body = [
-    `${title} — daily digest`,
-    `Scheduled: ${digest.scheduledFor} (${config.digest.schedule.timezone ?? "UTC"})`,
-    `${digest.events.length} new observations`,
+    `${title.charAt(0).toUpperCase() + title.slice(1)} — digest`,
+    displayTime(digest.scheduledFor, timezone),
+    `${observations.length} new observation${observations.length === 1 ? "" : "s"}`,
     "",
-    ...(digest.events.length ? digest.events.flatMap((event, index) => [
-      `${index + 1}. ${stripControlText(event.title ?? event.itemId)}`,
-      `Monitor: ${stripControlText(event.monitorId)}`,
-      stripControlText(event.reason),
+    ...(observations.length ? observations.flatMap((event, index) => [
+      `${index + 1}. ${readableText(event.title ?? event.itemId, event.url)}`,
+      stripControlText(digest.monitors.find(monitor => monitor.id === event.monitorId)?.name ?? event.monitorId),
       ...(event.url ? [`Source: ${stripControlText(event.url)}`] : []),
-      `Observed: ${event.observedAt}`,
-      ...readableContent(event.after),
+      `Observed: ${displayTime(event.observedAt, timezone)}`,
       "",
-      "Complete observation and assessment:",
-      stripControlText(JSON.stringify({ ...(event.before === undefined ? {} : { before: event.before }), after: event.after }, null, 2)),
-      `Event: ${event.id}`,
+      ...eventContent(event, timezone),
       "",
     ]) : ["No new observations in this digest period.", ""]),
-    "Source health",
-    ...digest.monitors.map(monitor => `${stripControlText(monitor.name)} (${monitor.id}): ${monitor.errorStreak ? `degraded — ${stripControlText(monitor.lastError ?? "scan failed")}` : monitor.lastSuccessAt ? "last scan succeeded" : "no successful scan yet"}; last success: ${monitor.lastSuccessAt ?? "never"}; last attempt: ${monitor.lastAttemptAt ?? "never"}`),
-    ...(digest.monitors.length ? [] : ["No active sources use this delivery route."]),
+    ...sourceHealth(digest.monitors, healthEvents, timezone),
     "",
     "These are observations from the configured sources. Source health and coverage limit what appears here.",
   ].join("\n");
@@ -88,13 +84,6 @@ export function formatDigestEmail(digest: EmailDigest): string {
   ];
   const encoded = Buffer.from(body.replaceAll("\n", "\r\n"), "utf8").toString("base64");
   return `${headers.join("\r\n")}\r\n\r\n${encoded.match(/.{1,76}/g)?.join("\r\n") ?? ""}\r\n`;
-}
-
-function readableContent(value: unknown, path = ""): string[] {
-  if (typeof value === "string") return [`${path ? `${path}: ` : ""}${stripControlText(value)}`];
-  if (Array.isArray(value)) return value.flatMap((item, index) => readableContent(item, `${path}[${index + 1}]`));
-  if (value && typeof value === "object") return Object.entries(value).flatMap(([key, item]) => readableContent(item, path ? `${path}.${key}` : key));
-  return [];
 }
 
 export async function sendEmailDigest(digest: EmailDigest): Promise<void> {

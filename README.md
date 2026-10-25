@@ -105,7 +105,7 @@ Item URLs retain fragment anchors because different sections can identify differ
 Feed acquisition collapses exact duplicates. If one identity has conflicting records, the scan fails and preserves the accepted baseline.
 If a publisher shares destination URLs across announcements, set `source.identity: provider` on its feed recipe.
 This mode uses the publisher's RSS GUID or Atom ID. Every entry must have a nonempty ID.
-SSS preserves nested feed content and its link destinations through storage and email delivery.
+SSS stores nested feed content and its link destinations unchanged. Email converts feed markup into readable text and links.
 A scheduled BrowserOS recipe can navigate to and read allowed origins.
 It cannot click, fill forms, download, evaluate JavaScript, or access app connectors.
 
@@ -203,7 +203,10 @@ A retried channel can receive a duplicate.
 Reference secrets through environment variables. SSS removes their values from errors and status output.
 `sss status`, `sss deliveries`, `sss doctor`, and `/api/deliveries` show the delivery backlog and failures.
 
-Email uses `msmtp` and its existing account configuration. Email includes the source URL, complete observation, model judgment, and evidence.
+Email uses `msmtp` and its existing account configuration. Email shows the source link, complete readable content, model judgment, and evidence.
+Feed markup becomes paragraphs, lists, and links. Images appear as descriptions and links; email does not load them.
+Reset alerts separate the post, quoted context, assessment, and evidence. Model judgments remain interpretations, not confirmed resets.
+Internal identifiers, JSON dumps, and scan tracebacks stay out of the email. The stored observations and diagnostic snapshots remain unchanged.
 The optional `events` filter limits each channel to selected event kinds. The inbox still retains every event.
 
 For a scheduled email digest, add the same `digest` configuration to each participating email channel:
@@ -215,7 +218,8 @@ digest:
 ```
 
 Channels with the same digest ID, schedule, recipient, sender, and account share one email.
-The first email is due at the next scheduled time. Each email includes every queued event, its complete available content, and source health.
+The first email is due at the next scheduled time. Each email includes every queued observation, its complete readable content, and source health.
+Scan failures and recoveries appear under source health, not in the observation count. Healthy sources share one status summary. Failed sources show a short error and their last successful scan.
 SSS does not apply an item count or body-length cap to a digest. Acquisition safety limits still apply. An incomplete acquisition fails instead of accepting a truncated result.
 An empty digest reports that no new observations were queued. Check its source-health section for failed or missing scans.
 Failed emails retry with the same saved contents and message ID. New observations wait for the next digest.
