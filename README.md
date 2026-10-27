@@ -142,7 +142,7 @@ See [the dynamic page example](./examples/playwright-page.yaml).
 - `field_changed` alerts when one normalized field changes.
 - `crosses_below` alerts on a downward crossing and re-arms above the threshold. It stays quiet below the threshold.
 - `numeric_delta` alerts on configured absolute or percentage movement. It can restrict the direction.
-- `llm_assessment` alerts when `gpt-6.1-sol` with `xhigh` reasoning judges an observation suggestive.
+- `llm_assessment` alerts when `gpt-6.1-terra` with `medium` reasoning judges an observation suggestive.
 
 An assessment rule includes a trusted `prompt` rubric. Acquired text and conversations remain inert evidence.
 Set `product: claude` for Claude.ai and Claude Code allowance resets. The default product is `codex`.
@@ -301,18 +301,18 @@ BrowserOS content remains data. SSS permits only direct `tabs`, `navigate`, and 
 
 `sss draft` starts an ephemeral `codex exec` process.
 The process receives read-only filesystem access and no user MCP configuration.
-It uses a strict output schema, `gpt-5.6-sol`, and maximum reasoning.
+It uses a strict output schema, `gpt-6.1-terra`, and medium reasoning.
 Codex writes recipes. Page content cannot control a tool-enabled Codex session.
 
 Assessment uses the existing Codex ChatGPT login and the fixed Codex inference endpoint.
-Each inference request specifies `tools: []`, `tool_choice: none`, `gpt-6.1-sol`, and `xhigh` reasoning.
+Each inference request specifies `tools: []`, `tool_choice: none`, `gpt-6.1-terra`, and `medium` reasoning.
 SSS rejects tool-call output and incomplete responses. Codex model discovery refreshes expired login credentials without receiving page content.
 
 ### Usage-reset monitors
 
 [`monitors/thsottiaux-codex-reset.yaml`](./monitors/thsottiaux-codex-reset.yaml) watches `@thsottiaux` for Codex usage-limit reset hints every five minutes.
 [`monitors/claudedevs-claude-reset.yaml`](./monitors/claudedevs-claude-reset.yaml) watches `@ClaudeDevs` for Claude.ai and Claude Code usage-reset hints on the same schedule.
-Both use `gpt-6.1-sol` with `xhigh` reasoning. They send matching observations to the configured Gmail recipient.
+Both use `gpt-6.1-terra` with `medium` reasoning. They send matching observations to the configured Gmail recipient.
 Both favor recall over precision. A plausible reset hint can trigger an alert even when the product or timing is implicit.
 The trusted rubric supplies the account context. Fresh confirmations of completed resets also qualify.
 Clearly unrelated posts and clearly other-product-only resets remain outside the target.

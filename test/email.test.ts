@@ -14,7 +14,7 @@ const event: ChangeEvent = {
   reason: "This suggests an incoming Codex usage-limit reset.", before: undefined,
   after: {
     text: `${"Long post 🥳 ".repeat(1_000)}last substantive sentence: fresh limits tomorrow?`,
-    assessment: { suggestive: true, reason: "The joke implies refreshed limits.", evidence: ["fresh limits tomorrow?"], model: "gpt-6.1-sol", reasoningEffort: "xhigh" },
+    assessment: { suggestive: true, reason: "The joke implies refreshed limits.", evidence: ["fresh limits tomorrow?"], model: "gpt-6.1-terra", reasoningEffort: "medium" },
   },
   observedAt: "2026-10-07T01:02:03.000Z",
 };
@@ -107,7 +107,7 @@ test("email sends complete UTF-8 evidence through an explicit msmtp recipient", 
   assert.equal(words.map((word) => Buffer.from(word[1]!, "base64").toString("utf8")).join(""), `SSS · ${unicodeEvent.monitorId}`);
   assert.ok(body.includes(event.url!));
   assert.ok(body.includes(String((event.after as { text: string }).text)));
-  for (const evidence of [event.reason, "fresh limits tomorrow?", "gpt-6.1-sol", "xhigh", "The joke implies refreshed limits."]) {
+  for (const evidence of [event.reason, "fresh limits tomorrow?", "gpt-6.1-terra", "medium", "The joke implies refreshed limits."]) {
     assert.ok(body.includes(evidence), `complete evidence: ${evidence}`);
   }
   const id = /^Message-ID: (.+)$/m.exec(headers)?.[1];

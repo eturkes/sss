@@ -11,7 +11,7 @@ const id = "thsottiaux-codex-reset";
 const config = (prompt = "Old rubric", monitorId = id): Monitor => monitorSchema.parse({
   version: 1, id: monitorId, name: "Reset hints", enabled: true, schedule: { every: "5m" },
   source: { type: "x", handle: monitorId === "claudedevs-claude-reset" ? "ClaudeDevs" : "thsottiaux", maxPages: 30 },
-  rules: [{ id: "reset-hint", type: "llm_assessment", trigger: "new_item", bootstrap: "suppress_existing", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt, ...(monitorId === "claudedevs-claude-reset" ? { product: "claude" } : {}) }],
+  rules: [{ id: "reset-hint", type: "llm_assessment", trigger: "new_item", bootstrap: "suppress_existing", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt, ...(monitorId === "claudedevs-claude-reset" ? { product: "claude" } : {}) }],
   notifications: [{ type: "inbox" }],
 });
 const next = () => config("High-recall rubric");

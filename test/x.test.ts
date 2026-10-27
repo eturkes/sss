@@ -14,7 +14,7 @@ const envelope = (content: string, origin = "https://x.com/search") => ({ conten
 
 test("X + assessment + email schema validates and semantic changes re-prime", () => {
   const config = { version: 1, id: "reset", name: "Reset", enabled: false, schedule: { every: "5m" }, source,
-    rules: [{ type: "llm_assessment", id: "hint", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Assess usage-reset hints." }],
+    rules: [{ type: "llm_assessment", id: "hint", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Assess usage-reset hints." }],
     notifications: [{ type: "email", to: "emir.turkes@eturkes.com", account: "gmail" }] };
   const parsed = monitorSchema.parse(config);
   assert.equal(parsed.source.type, "x");

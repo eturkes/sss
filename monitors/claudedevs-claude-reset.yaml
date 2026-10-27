@@ -18,8 +18,8 @@ rules:
     trigger: new_item
     product: claude
     bootstrap: suppress_existing
-    model: gpt-6.1-sol
-    reasoningEffort: xhigh
+    model: gpt-6.1-terra
+    reasoningEffort: medium
     prompt: >-
       Favor recall: a missed reset costs more than a false alarm. Set suggestive
       true for any plausible Claude.ai or Claude Code allowance-reset signal,

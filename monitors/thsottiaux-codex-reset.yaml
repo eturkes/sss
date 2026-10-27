@@ -17,8 +17,8 @@ rules:
     type: llm_assessment
     trigger: new_item
     bootstrap: suppress_existing
-    model: gpt-6.1-sol
-    reasoningEffort: xhigh
+    model: gpt-6.1-terra
+    reasoningEffort: medium
     prompt: >-
       Favor recall: a missed reset costs more than a false alarm. Set suggestive
       true for any plausible Codex allowance-reset signal, including an upcoming,

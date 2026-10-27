@@ -52,7 +52,7 @@ test("X v3 history survives the v4 parser upgrade without copying judgments", as
   const { runtime } = await fixture(context);
   const config = monitorSchema.parse({ version: 1, id: "sample", name: "Sample", enabled: false,
     schedule: { every: "5m" }, source: { type: "x", handle: "thsottiaux" },
-    rules: [{ type: "llm_assessment", id: "reset", trigger: "new_item", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Reset hints." }] });
+    rules: [{ type: "llm_assessment", id: "reset", trigger: "new_item", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Reset hints." }] });
   const old = semanticMonitorHash(config, 3), next = semanticMonitorHash(config);
   assert.notEqual(old, next);
   runtime.store.syncMonitor(config, JSON.stringify(config), old, "2026-10-01T00:00:00Z");
@@ -72,7 +72,7 @@ test("editor parser transitions use nested transactions without weakening rollba
   const { runtime } = await fixture(context);
   const config = monitorSchema.parse({ version: 1, id: "sample", name: "Sample", enabled: false,
     schedule: { every: "5m" }, source: { type: "x", handle: "thsottiaux" },
-    rules: [{ type: "llm_assessment", id: "reset", trigger: "new_item", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Reset hints." }] });
+    rules: [{ type: "llm_assessment", id: "reset", trigger: "new_item", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Reset hints." }] });
   const old = semanticMonitorHash(config, 3), next = semanticMonitorHash(config);
   runtime.store.syncMonitor(config, JSON.stringify(config), old, "2026-10-01T00:00:00Z");
   const run = runtime.store.beginRun(config.id, old, "original", "2026-10-01T00:00:00Z", "2000-01-01T00:00:00Z");

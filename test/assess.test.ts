@@ -10,7 +10,7 @@ import type { ScanItem } from "../src/core/types.ts";
 
 const rule: AssessmentRule = {
   id: "reset-hint", type: "llm_assessment", bootstrap: "suppress_existing",
-  model: "gpt-6.1-sol", reasoningEffort: "xhigh",
+  model: "gpt-6.1-terra", reasoningEffort: "medium",
   prompt: "Assess veiled humor about a coming Codex usage-limit reset.",
 };
 const item: ScanItem = {
@@ -42,8 +42,8 @@ test("assessment validates a positive result and isolates model, instructions, t
     assert.equal(headers.get("authorization"), "Bearer fixture-access");
     assert.equal(headers.get("chatgpt-account-id"), "fixture-account");
     const body = JSON.parse(String(options?.body)) as Record<string, unknown>;
-    assert.equal(body["model"], "gpt-6.1-sol");
-    assert.deepEqual(body["reasoning"], { effort: "xhigh" });
+    assert.equal(body["model"], "gpt-6.1-terra");
+    assert.deepEqual(body["reasoning"], { effort: "medium" });
     assert.deepEqual(body["tools"], []);
     assert.equal(body["tool_choice"], "none");
     assert.equal(body["store"], false);

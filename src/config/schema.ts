@@ -429,8 +429,8 @@ export const assessmentRuleSchema = z.object({
   product: z.enum(["codex", "claude"]).optional(),
   mode: z.literal("semantic").optional(),
   target: z.string().trim().min(1).max(1_000).optional(),
-  model: z.literal("gpt-6.1-sol"),
-  reasoningEffort: z.literal("xhigh"),
+  model: z.literal("gpt-6.1-terra"),
+  reasoningEffort: z.literal("medium"),
   prompt: z.string().trim().min(1).max(10_000),
 }).strict().superRefine((rule, context) => {
   if (rule.mode === "semantic") {

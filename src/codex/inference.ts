@@ -33,13 +33,13 @@ export async function inferStructured(input: InferenceInput, timeoutMs: number, 
       auth = await readAuth(authPath);
     }
     const body = {
-      model: "gpt-6.1-sol", instructions: input.instructions,
+      model: "gpt-6.1-terra", instructions: input.instructions,
       input: [{ role: "user", content: [
         { type: "input_text", text: input.payload },
         ...images.map(image_url => ({ type: "input_image", image_url, detail: "high" })),
       ] }],
       tools: [], tool_choice: "none", parallel_tool_calls: false,
-      reasoning: { effort: "xhigh" }, store: false, stream: true,
+      reasoning: { effort: "medium" }, store: false, stream: true,
       text: { format: { type: "json_schema", name: "sss_assessment", strict: true, schema: input.schema } },
     };
     const fetchInference = dependencies.fetch ?? globalThis.fetch;

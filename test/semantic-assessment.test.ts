@@ -9,7 +9,7 @@ import type { AssessmentRule } from "../src/config/schema.ts";
 
 const rule = {
   id: "research-match", type: "llm_assessment", bootstrap: "suppress_existing",
-  mode: "semantic", target: "Research on agent evaluation", model: "gpt-6.1-sol", reasoningEffort: "xhigh",
+  mode: "semantic", target: "Research on agent evaluation", model: "gpt-6.1-terra", reasoningEffort: "medium",
   prompt: "Match research that evaluates autonomous coding agents on reproducible tasks.",
 } as AssessmentRule;
 const item = { id: "doi:10.5555/test", title: "Reproducible agent evaluation", data: {

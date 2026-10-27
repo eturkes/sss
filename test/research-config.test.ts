@@ -13,7 +13,7 @@ const now = () => new Date("2026-10-23T01:02:03.000Z");
 const config = {
   version: 1, id: "research", name: "Research", enabled: true, schedule: { every: "6h" },
   source: { type: "arxiv", query: "all:agents" }, assertions: { allowEmpty: true },
-  rules: [{ id: "match", type: "llm_assessment", trigger: "new_item", mode: "semantic", target: "Coding agent evaluation", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Match evaluations of coding agents." }],
+  rules: [{ id: "match", type: "llm_assessment", trigger: "new_item", mode: "semantic", target: "Coding agent evaluation", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Match evaluations of coding agents." }],
 };
 
 test("semantic assessment schema requires trusted target and isolates classifications from reset judgments", () => {
@@ -23,7 +23,7 @@ test("semantic assessment schema requires trusted target and isolates classifica
   for (const rule of [{ ...config.rules[0], target: undefined }, { ...config.rules[0], product: "codex" }, { ...config.rules[0], mode: undefined }]) {
     assert.equal(monitorSchema.safeParse({ ...config, rules: [rule] }).success, false);
   }
-  const legacy = { ...config, rules: [{ id: "reset", type: "llm_assessment", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Assess reset hints." }] };
+  const legacy = { ...config, rules: [{ id: "reset", type: "llm_assessment", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Assess reset hints." }] };
   assert.equal(semanticMonitorHash(legacy), semanticMonitorHash({ ...legacy, rules: [{ ...legacy.rules[0], product: "codex" }] }));
 });
 

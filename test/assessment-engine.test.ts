@@ -11,7 +11,7 @@ const negative = { suggestive: false, reason: "No usage-limit reset is suggested
 type Assessment = typeof positive;
 
 function rule(overrides: Record<string, unknown> = {}) {
-  return { id: "reset", type: "llm_assessment", bootstrap: "evaluate_current", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Assess an incoming Codex usage-limit reset.", ...overrides };
+  return { id: "reset", type: "llm_assessment", bootstrap: "evaluate_current", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Assess an incoming Codex usage-limit reset.", ...overrides };
 }
 
 function monitor(rules = [rule()], assertions?: Record<string, unknown>) {
@@ -50,9 +50,9 @@ test("assessment evaluates new and edited revisions, caches negatives, and dedup
   const changed = await engine.run(config, "ns", { scheduledFor: "edited-and-new" });
   assert.deepEqual(changed.events.map((event) => event.itemId), ["1", "2"]);
   assert.equal(changed.events[0]!.kind, "llm_assessment");
-  assert.match(changed.events[0]!.reason, /model judgment.*gpt-6\.1-sol/i);
+  assert.match(changed.events[0]!.reason, /model judgment.*gpt-6\.1-terra/i);
   assert.deepEqual(changed.events[0]!.after, {
-    post: items[0], assessment: { ...positive, model: "gpt-6.1-sol", reasoningEffort: "xhigh" },
+    post: items[0], assessment: { ...positive, model: "gpt-6.1-terra", reasoningEffort: "medium" },
   });
   assert.equal((await engine.run(config, "ns", { scheduledFor: "positive-again" })).events.length, 0);
   items = [post("2", "fresh tank tomorrow")];

@@ -18,8 +18,8 @@ rules:
     trigger: new_item
     mode: semantic
     target: Reproducible evaluation of autonomous coding agents
-    model: gpt-6.1-sol
-    reasoningEffort: xhigh
+    model: gpt-6.1-terra
+    reasoningEffort: medium
     prompt: >-
       Match papers that report an evaluation of autonomous coding agents on reproducible
       programming tasks. Use the observed title and abstract. Exclude work that only

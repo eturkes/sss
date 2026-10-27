@@ -34,7 +34,7 @@ export async function draftMonitor(request: string, options: { timeoutMs?: numbe
 - mapped JSON fields = dotted path string or {path,type?,currency?}; HTML fields = {selector?,attribute?,type?,currency?}; BrowserOS fields = {selector,type?,currency?} and never support attribute; type money always requires an explicit ISO 4217 currency
 - assertions = {allowEmpty?:true,minItems?,maxItems?,requiredFields?,invariantFields?,uniqueBy?}; research queries may use allowEmpty:true; fare context/date/passengers belong in requiredFields + invariantFields
 - rules = new_items {id,type,bootstrap?}; field_changed {id,type,field,bootstrap?}; crosses_below {id,type,field,threshold OR thresholdMinor+currency,bootstrap?}; numeric_delta {id,type,field,absolute?/percent?,direction?,currency?}
-- semantic event gate = llm_assessment {id,type,mode:"semantic",target,prompt,model:"gpt-6.1-sol",reasoningEffort:"xhigh",trigger?:"new_item",bootstrap?}; use this rule alone for match-only alerts; do not add new_items for the same selective alert
+- semantic event gate = llm_assessment {id,type,mode:"semantic",target,prompt,model:"gpt-6.1-terra",reasoningEffort:"medium",trigger?:"new_item",bootstrap?}; use this rule alone for match-only alerts; do not add new_items for the same selective alert
 - optional observation artifacts = artifacts:{retentionDays:1..365}; leave omitted unless the user requests retained extracted evidence
 - stable list identity field = doi/arxivId/id/identifier/url/link; singleton HTML/BrowserOS identity comes from source URL
 Fare pattern: source fields must extract price + one combined itinerary context string; assertions requiredFields:["price","itinerary"], invariantFields:["itinerary"]; crosses_below thresholdMinor is currency minor units (USD 900 = 90000) and includes currency.
@@ -64,7 +64,7 @@ Constraints: deterministic source only; prefer feed/OpenAlex/JSON/HTML; first re
 
 function runCodex(prompt: string, schemaPath: string, outputPath: string, workingDirectory: string, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
-    const args = ["exec", "--ephemeral", "--ignore-user-config", "--sandbox", "read-only", "--skip-git-repo-check", "--model", "gpt-5.6-sol", "-c", 'model_reasoning_effort="max"', "--output-schema", schemaPath, "--output-last-message", outputPath, "-"];
+    const args = ["exec", "--ephemeral", "--ignore-user-config", "--sandbox", "read-only", "--skip-git-repo-check", "--model", "gpt-6.1-terra", "-c", 'model_reasoning_effort="medium"', "--output-schema", schemaPath, "--output-last-message", outputPath, "-"];
     const child = spawn("codex", args, { cwd: workingDirectory, stdio: ["pipe", "ignore", "pipe"], env: minimalEnvironment() });
     let stderr = "";
     let killTimer: NodeJS.Timeout | undefined;

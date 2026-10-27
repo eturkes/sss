@@ -27,7 +27,7 @@ export async function assessItem(
 ): Promise<AssessmentResult> {
   const timeoutMs = options.timeoutMs ?? 240_000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647) throw new Error("assessment timeout must be a positive bounded integer");
-  if (rule.model !== "gpt-6.1-sol" || rule.reasoningEffort !== "xhigh") throw new Error("assessment model must be gpt-6.1-sol with xhigh reasoning");
+  if (rule.model !== "gpt-6.1-terra" || rule.reasoningEffort !== "medium") throw new Error("assessment model must be gpt-6.1-terra with medium reasoning");
   const mode = rule.mode;
   if (mode !== undefined && mode !== "semantic") throw new Error("assessment mode must be semantic or omitted");
   if (mode === "semantic") {

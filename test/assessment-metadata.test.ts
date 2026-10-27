@@ -10,7 +10,7 @@ const negative = { suggestive: false, reason: "No reset hint.", evidence: [] };
 const positive = { suggestive: true, reason: "The text may suggest replenished usage.", evidence: ["fresh tank tomorrow"] };
 const original: ScanItem = { id: "one", title: "Original Å\nheading", url: "https://example.com/original", publishedAt: at, data: { text: "fresh tank tomorrow" } };
 const config = (bootstrap = "evaluate_current") => ({ id: "watch", name: "Watch", enabled: true, source: { type: "fixture" },
-  rules: [{ id: "hint", type: "llm_assessment", bootstrap, model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Assess reset hints." }],
+  rules: [{ id: "hint", type: "llm_assessment", bootstrap, model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Assess reset hints." }],
   notifications: [{ type: "inbox" }] } as never);
 function setup() {
   const store = new Store(":memory:");

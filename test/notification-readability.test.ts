@@ -91,12 +91,12 @@ test("reset alerts show assessment, quoted evidence and full post context withou
     post: { id: "123", title: "A possible usage reset", url: "https://x.com/thsottiaux/status/123", publishedAt: "2026-10-24T23:00:00.000Z", data: {
       author: "thsottiaux", postId: "123", text: postText, context: "Parent: your allowance is nearly empty.", quotedText: "Quoted post: more tokens soon.",
     } },
-    assessment: { suggestive: true, reason: "The joke may suggest a replenished allowance.", evidence: ["Fresh tank tomorrow?"], model: "gpt-6.1-sol", reasoningEffort: "xhigh" },
+    assessment: { suggestive: true, reason: "The joke may suggest a replenished allowance.", evidence: ["Fresh tank tomorrow?"], model: "gpt-6.1-terra", reasoningEffort: "medium" },
   } });
   const original = structuredClone(reset);
   const wire = formatEmail(reset, config);
   const text = body(wire);
-  for (const expected of [postText, "The joke may suggest a replenished allowance.", "Fresh tank tomorrow?", "Parent: your allowance is nearly empty.", "Quoted post: more tokens soon.", "https://x.com/thsottiaux/status/123", "gpt-6.1-sol", "xhigh"]) assert.ok(text.includes(expected), expected);
+  for (const expected of [postText, "The joke may suggest a replenished allowance.", "Fresh tank tomorrow?", "Parent: your allowance is nearly empty.", "Quoted post: more tokens soon.", "https://x.com/thsottiaux/status/123", "gpt-6.1-terra", "medium"]) assert.ok(text.includes(expected), expected);
   assert.match(text, /evidence/i);
   assert.doesNotMatch(text, /"(?:post|data|assessment|suggestive|reasoningEffort)"\s*:|post\.data\.|assessment\.evidence\[|Event: event-internal/);
   assert.equal(formatEmail(reset, config), wire);

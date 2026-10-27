@@ -29,7 +29,7 @@ const transitionAt = "2026-01-01T00:00:00.000Z";
 const transitionConfig = {
   version: 1, id: "watch", name: "Watch", enabled: true, schedule: { every: "5m" },
   source: { type: "x", handle: "thsottiaux", maxPages: 30 },
-  rules: [{ id: "hint", type: "llm_assessment", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Assess incoming usage-reset hints." }],
+  rules: [{ id: "hint", type: "llm_assessment", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Assess incoming usage-reset hints." }],
 };
 
 async function transitionRuntime(context: { after: (cleanup: () => Promise<void>) => void }, collector?: Collector) {

@@ -12,7 +12,7 @@ for (const previousVersion of [1, 2] as const) test(`X v${previousVersion} parse
   const monitorsDir = join(directory, "monitors");
   await mkdir(monitorsDir);
   const config = monitorSchema.parse({ version: 1, id: "watch", name: "Watch", enabled: true, source: { type: "x", handle: "thsottiaux" }, schedule: { every: "5m" },
-    rules: [{ id: "reset", type: "llm_assessment", trigger: "new_item", bootstrap: "suppress_existing", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Assess reset hints." }], notifications: [{ type: "inbox" }] });
+    rules: [{ id: "reset", type: "llm_assessment", trigger: "new_item", bootstrap: "suppress_existing", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Assess reset hints." }], notifications: [{ type: "inbox" }] });
   await writeFile(join(monitorsDir, "watch.yaml"), stringify(config));
   const runtime = new Runtime({ ephemeral: true, monitorsDir, stateDir: join(directory, "state"), collector: async () => { throw new Error("must not acquire during sync"); } });
   context.after(async () => { runtime.close(); await rm(directory, { recursive: true, force: true }); });

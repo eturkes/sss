@@ -10,7 +10,7 @@ import type { ScanItem } from "../src/core/types.ts";
 
 const rule: AssessmentRule = {
   id: "reset-hint", type: "llm_assessment", bootstrap: "suppress_existing",
-  model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Assess veiled usage-allowance replenishment hints.",
+  model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Assess veiled usage-allowance replenishment hints.",
 };
 const item: ScanItem = {
   id: "123", url: "https://x.com/ClaudeDevs/status/123",
@@ -51,8 +51,8 @@ test("Claude assessment targets Claude.ai and Claude Code allowance resets witho
   assert.match(instructions, /"Claude reset" means .*Claude\.ai or Claude Code usage limits or allowance/);
   assert.doesNotMatch(instructions, /"Codex reset"|mention of Codex/);
   assert.ok(instructions.includes(rule.prompt));
-  assert.equal(body["model"], "gpt-6.1-sol");
-  assert.deepEqual(body["reasoning"], { effort: "xhigh" });
+  assert.equal(body["model"], "gpt-6.1-terra");
+  assert.deepEqual(body["reasoning"], { effort: "medium" });
   assert.deepEqual(body["tools"], []);
   assert.equal(body["tool_choice"], "none");
   assert.equal(body["parallel_tool_calls"], false);

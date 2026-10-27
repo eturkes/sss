@@ -7,7 +7,7 @@ import { Store } from "../src/store/database.ts";
 
 const config = (trigger: string | undefined = "new_item") => ({ version: 1, id: "watch", name: "Watch", enabled: true,
   schedule: { every: "5m" }, source: { type: "x", handle: "thsottiaux", maxPages: 30 },
-  rules: [{ id: "reset", type: "llm_assessment", bootstrap: "suppress_existing", model: "gpt-6.1-sol", reasoningEffort: "xhigh", prompt: "Assess reset hints.", ...(trigger ? { trigger } : {}) }],
+  rules: [{ id: "reset", type: "llm_assessment", bootstrap: "suppress_existing", model: "gpt-6.1-terra", reasoningEffort: "medium", prompt: "Assess reset hints.", ...(trigger ? { trigger } : {}) }],
   notifications: [{ type: "inbox" }] });
 const at = "2026-10-07T08:00:00.000Z";
 const post = (id: string, text: string): ScanItem => ({ id, data: { author: "thsottiaux", text } });

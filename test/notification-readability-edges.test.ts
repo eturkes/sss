@@ -24,7 +24,7 @@ test("reader text preserves plain generic notation in content and model evidence
   assert.equal(readableText(statement), statement);
   const rendered = eventContent(event({ kind: "llm_assessment", after: {
     post: { data: { text: statement } },
-    assessment: { suggestive: true, reason: "Potential reset", evidence: [statement], model: "gpt-6.1-sol", reasoningEffort: "xhigh" },
+    assessment: { suggestive: true, reason: "Potential reset", evidence: [statement], model: "gpt-6.1-terra", reasoningEffort: "medium" },
   } })).join("\n");
   assert.equal(rendered.split(statement).length - 1, 2, "post and quoted evidence preserve the same wording");
 });
