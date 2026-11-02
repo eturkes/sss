@@ -1,7 +1,7 @@
 version: 1
 id: fv-frama-c
 name: Formal verification · Frama-C news and articles
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

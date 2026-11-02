@@ -1,7 +1,7 @@
 version: 1
 id: fv-carbon
 name: Formal verification · Viper Carbon releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

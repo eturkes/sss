@@ -1,7 +1,7 @@
 version: 1
 id: fv-silicon
 name: Formal verification · Viper Silicon releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

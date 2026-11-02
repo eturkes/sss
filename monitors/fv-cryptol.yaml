@@ -1,7 +1,7 @@
 version: 1
 id: fv-cryptol
 name: Formal verification · Cryptol releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

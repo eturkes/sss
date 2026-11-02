@@ -1,7 +1,7 @@
 version: 1
 id: fv-acl2
 name: Formal verification · ACL2 releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

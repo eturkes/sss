@@ -1,7 +1,7 @@
 version: 1
 id: fv-rocq-platform
 name: Formal verification · Rocq Platform releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

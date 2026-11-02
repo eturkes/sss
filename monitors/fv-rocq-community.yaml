@@ -1,7 +1,7 @@
 version: 1
 id: fv-rocq-community
 name: Formal verification · Rocq community announcements and discussions
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

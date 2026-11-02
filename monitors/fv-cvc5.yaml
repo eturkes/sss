@@ -1,7 +1,7 @@
 version: 1
 id: fv-cvc5
 name: Formal verification · cvc5 releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

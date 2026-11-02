@@ -1,7 +1,7 @@
 version: 1
 id: fv-dafny
 name: Formal verification · Dafny releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

@@ -1,7 +1,7 @@
 version: 1
 id: fv-lean
 name: Formal verification · Lean releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

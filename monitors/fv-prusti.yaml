@@ -1,7 +1,7 @@
 version: 1
 id: fv-prusti
 name: Formal verification · Prusti releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

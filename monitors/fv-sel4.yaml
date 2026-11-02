@@ -1,7 +1,7 @@
 version: 1
 id: fv-sel4
 name: Formal verification · seL4 releases
-enabled: true
+enabled: false
 schedule:
   cron: 15 * * * *
   timezone: Asia/Tokyo

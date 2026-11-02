@@ -1,7 +1,7 @@
 version: 1
 id: fv-papers
 name: Formal verification · research papers
-enabled: true
+enabled: false
 schedule:
   cron: 30 * * * *
   timezone: Asia/Tokyo
