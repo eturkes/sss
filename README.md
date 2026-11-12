@@ -226,7 +226,8 @@ Failed emails retry with the same saved contents and message ID. New observation
 
 ### Daily formal-verification digest
 
-The `monitors/fv-*.yaml` recipes collect updates each hour. They share one email digest at **09:00 Asia/Tokyo** through the configured Gmail account.
+The `monitors/fv-*.yaml` recipes are disabled. They do not collect updates or send the daily digest.
+The retained configuration sets hourly scans and one email digest at **09:00 Asia/Tokyo** through the configured Gmail account.
 The sources cover:
 
 - arXiv papers in logic, programming languages, formal verification, model checking, theorem proving, and proof assistants;
