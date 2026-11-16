@@ -1,7 +1,7 @@
 version: 1
 id: discussion-reddit-computerscience
 name: Formal verification discussions · Reddit r/ComputerScience
-enabled: true
+enabled: false
 schedule:
   every: 1h
 source:

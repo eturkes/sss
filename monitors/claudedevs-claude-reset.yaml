@@ -1,7 +1,7 @@
 version: 1
 id: claudedevs-claude-reset
 name: ClaudeDevs · Claude usage-reset hints
-enabled: true
+enabled: false
 schedule: { every: 5m }
 source:
   type: x

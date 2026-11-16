@@ -1,7 +1,7 @@
 version: 1
 id: thsottiaux-codex-reset
 name: Tibo · Codex usage-reset hints
-enabled: true
+enabled: false
 schedule: { every: 5m }
 source:
   type: x
