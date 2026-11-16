@@ -31,12 +31,12 @@ function link(value: string | undefined, base?: string): string | undefined {
 }
 
 /** Presentation only: source observations retain their original bytes in the store. */
-export function readableText(value: string, base?: string): string {
+export function readableText(value: string, base?: string, html = false): string {
   const clean = stripControlText(value);
   const closed = new Set([...clean.matchAll(/<\/([\w:-]+)\s*>/g)].map(match => match[1]!.toLowerCase()));
   let markup = false;
   const protectedText = clean.replace(/<\/?([\w:-]+)\b[^>]*>/g, (tag, name: string) => {
-    if (HTML_TAG.test(name) && (closed.has(name.toLowerCase()) || VOID_TAG.test(name) || tag.endsWith("/>"))) { markup = true; return tag; }
+    if (HTML_TAG.test(name) && (html || closed.has(name.toLowerCase()) || VOID_TAG.test(name) || tag.endsWith("/>"))) { markup = true; return tag; }
     return tag.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   });
   if (!markup && !/&(?:#\d+|#x[\da-f]+|[a-z]+);/i.test(clean)) return clean;
@@ -105,11 +105,55 @@ function fields(value: JsonValue, base?: string, indent = ""): string[] {
       : [`${indent}${label(key)}: ${fields(item, base).join("\n")}`]);
 }
 
+function discussionComments(comments: JsonObject[], base: string | undefined, timezone: string, threadId: JsonValue | undefined): string[] {
+  const identities = new Map<string, string>();
+  const numbers = new Map<string, string>();
+  const key = (value: JsonValue | undefined) => typeof value === "number" || typeof value === "string" ? String(value) : undefined;
+  const root = link(base);
+  if (root) {
+    if (key(threadId) !== undefined) identities.set(key(threadId)!, root);
+    numbers.set("1", root);
+  }
+  for (const comment of comments) {
+    const url = link(string(comment["url"]), base);
+    if (!url) continue;
+    if (key(comment["id"]) !== undefined) identities.set(key(comment["id"])!, url);
+    if (key(comment["postNumber"]) !== undefined) numbers.set(key(comment["postNumber"])!, url);
+  }
+  const parts = ["", `Comments (${comments.length})`];
+  for (const comment of comments) {
+    const author = string(comment["author"]);
+    const published = string(comment["publishedAt"]);
+    const url = link(string(comment["url"]), base);
+    const status = comment["unavailable"] === true ? "Unavailable comment" : comment["deleted"] === true ? "Deleted comment" : comment["moderated"] === true ? "Moderated comment" : comment["dead"] === true ? "Flagged comment" : "Comment";
+    parts.push("", `${status}${author ? ` by ${author}` : ""}${published ? ` · ${displayTime(published, timezone)}` : ""}`);
+    if (url) parts.push(url);
+    const parent = key(comment["parentId"] ?? comment["parent"]);
+    const parentNumber = key(comment["parentNumber"]);
+    const parentUrl = link(string(comment["parentUrl"]), base) ?? (parent === undefined ? undefined : identities.get(parent)) ?? (parentNumber === undefined ? undefined : numbers.get(parentNumber));
+    if (parentUrl) parts.push(`In reply to: ${parentUrl}`);
+    const seen = new Set<string>();
+    for (const field of ["body", "text"]) {
+      const text = string(comment[field]);
+      if (!text) continue;
+      // These adapters acquire publisher HTML, including HN's unclosed paragraph tags.
+      const rendered = readableText(text, url ?? base, true);
+      if (rendered && !seen.has(rendered)) { seen.add(rendered); parts.push("", rendered); }
+    }
+    const known = new Set(["id", "postId", "postNumber", "url", "author", "publishedAt", "body", "text", "parent", "parentId", "parentNumber", "parentUrl", "deleted", "moderated", "dead", "unavailable", "hidden", "userDeleted", "deletedAt"]);
+    const extra = Object.fromEntries(Object.entries(comment).filter(([key]) => !known.has(key)));
+    if (Object.keys(extra).length) parts.push(...fields(extra, url ?? base));
+  }
+  return parts;
+}
+
 function observation(value: JsonValue, base: string | undefined, timezone: string, metadata?: JsonObject): string[] {
   const data = record(value);
   if (!data) return fields(value, base);
   const parts: string[] = [];
   const used = new Set([...INTERNAL, ...CONTENT]);
+  const rawComments = data["comments"];
+  const comments = Array.isArray(rawComments) && rawComments.every(comment => record(comment) !== undefined) ? rawComments as JsonObject[] : undefined;
   const author = data["authors"] ?? data["author"];
   if (author !== undefined) {
     used.add(data["authors"] !== undefined && data["authors"] !== null ? "authors" : "author");
@@ -127,8 +171,8 @@ function observation(value: JsonValue, base: string | undefined, timezone: strin
     if (value === undefined) continue;
     const raw = string(value);
     if (!raw) { parts.push("", `${label(key)}:`, ...fields(value, base)); continue; }
-    // Posts are authored plain text, not HTML. Angle brackets can be substantive evidence.
-    const rendered = key === "text" ? raw : readableText(raw, base);
+    // Browser posts are plain text; discussion APIs identify their bodies as publisher HTML.
+    const rendered = key === "text" && comments === undefined ? raw : readableText(raw, base, comments !== undefined);
     if (seen.has(rendered) || !rendered.trim()) continue;
     seen.add(rendered);
     parts.push("", ...(key === "text" ? ["Post"] : []), rendered);
@@ -164,6 +208,10 @@ function observation(value: JsonValue, base: string | undefined, timezone: strin
       else if (media) parts.push(...fields(media, base, "- "));
     }
     }
+  }
+  if (comments !== undefined) {
+    for (const key of ["comments", "threadId", "postCount", "commentCount"]) used.add(key);
+    parts.push(...discussionComments(comments, base, timezone, data["threadId"]));
   }
   const other = Object.fromEntries(Object.entries(data).filter(([key]) => !used.has(key)));
   if (Object.keys(other).length) parts.push("", ...fields(other, base));

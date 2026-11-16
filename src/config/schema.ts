@@ -6,6 +6,7 @@ import { isCurrencyCode } from "../core/money.ts";
 import { arxivSourceSchema, crossrefSourceSchema } from "./research.ts";
 import { createPlaywrightSourceSchema } from "./playwright.ts";
 import { sel4NewsSourceSchema } from "./sel4.ts";
+import { hnDiscussionsSourceSchema, discourseSourceSchema, lobstersSourceSchema, xDiscussionsSourceSchema, redditDiscussionsSourceSchema } from "./discussions.ts";
 
 export const SAFE_ID_PATTERN = /^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/;
 export const ENV_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
@@ -301,6 +302,7 @@ export const browserOsSourceSchema = z
   });
 
 export const sourceSchema = z.discriminatedUnion("type", [
+  hnDiscussionsSourceSchema, discourseSourceSchema, lobstersSourceSchema, xDiscussionsSourceSchema, redditDiscussionsSourceSchema,
   feedSourceSchema,
   jsonSourceSchema,
   htmlSourceSchema,
@@ -425,7 +427,7 @@ export const numericDeltaRuleSchema = z
 export const assessmentRuleSchema = z.object({
   ...ruleBaseShape,
   type: z.literal("llm_assessment"),
-  trigger: z.enum(["new_item", "new_or_changed"]).optional(),
+  trigger: z.enum(["new_item", "new_or_changed", "until_match"]).optional(),
   product: z.enum(["codex", "claude"]).optional(),
   mode: z.literal("semantic").optional(),
   target: z.string().trim().min(1).max(1_000).optional(),
@@ -624,7 +626,7 @@ export function semanticMonitorValue(monitor: Monitor, xAdapterVersion: XAdapter
     },
     rules: monitor.rules.map((rule) => ({
       ...rule,
-      ...(rule.type === "llm_assessment" ? { trigger: rule.trigger === "new_item" ? rule.trigger : undefined } : {}),
+      ...(rule.type === "llm_assessment" ? { trigger: rule.trigger && rule.trigger !== "new_or_changed" ? rule.trigger : undefined } : {}),
       ...(rule.type === "llm_assessment" ? { product: rule.product === "claude" ? rule.product : undefined } : {}),
       enabled: rule.enabled ?? true,
       ...(rule.type === "numeric_delta" ? { direction: rule.direction ?? "any" } : {}),
@@ -634,6 +636,7 @@ export function semanticMonitorValue(monitor: Monitor, xAdapterVersion: XAdapter
 
 function effectiveSource(source: Source, xAdapterVersion: XAdapterVersion): Record<string, unknown> {
   if (source.type === "x") return { ...source, handle: source.handle.toLowerCase(), adapterVersion: xAdapterVersion };
+  if (["hn_discussions", "discourse", "lobsters", "x_discussions", "reddit_discussions"].includes(source.type)) return { ...source, adapterVersion: 1 };
   if (source.type === "sel4_news") return { ...source, adapterVersion: 1 };
   if (source.type === "arxiv" || source.type === "crossref") return { ...source, perPage: source.perPage ?? 100, maxPages: source.maxPages ?? 100, adapterVersion: 1 };
   if (source.type === "feed") {

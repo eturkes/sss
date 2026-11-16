@@ -189,9 +189,9 @@ async function doctor(runtime: Runtime): Promise<void> {
   const requiredEnv = environmentRequirements(monitors);
   const missingEnv = [...requiredEnv].filter((name) => !process.env[name]);
   checks.push(["secrets", missingEnv.length === 0, missingEnv.length ? `missing ${missingEnv.join(", ")}` : `${requiredEnv.size} required variable(s) ready`]);
-  if (monitors.some((monitor) => ["browseros", "x"].includes(monitor.source.type))) {
+  if (monitors.some((monitor) => ["browseros", "x", "x_discussions"].includes(monitor.source.type))) {
     try {
-      const client = await (monitors.some(monitor => monitor.source.type === "x") ? createBrowserOsNeoClient : createBrowserOsClient)(safeFetch);
+      const client = await (monitors.some(monitor => ["x", "x_discussions"].includes(monitor.source.type)) ? createBrowserOsNeoClient : createBrowserOsClient)(safeFetch);
       try { await verifyTools(client); }
       finally { await client.close(); }
       checks.push(["BrowserOS", true, "Neo read-only MCP ready"]);
@@ -215,7 +215,7 @@ function environmentRequirements(monitors: Monitor[]): Set<string> {
   for (const monitor of monitors) {
     visit(monitor);
     if (monitor.source.type === "openalex") names.add("OPENALEX_API_KEY");
-    if (["browseros", "x"].includes(monitor.source.type)) names.add("SSS_BROWSEROS_ORIGINS");
+    if (["browseros", "x", "x_discussions"].includes(monitor.source.type)) names.add("SSS_BROWSEROS_ORIGINS");
   }
   return names;
 }

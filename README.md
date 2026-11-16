@@ -98,6 +98,11 @@ health: { failuresBeforeAlert: 3 }
 | `playwright` | Renders anonymous dynamic pages. | Uses a fresh browser with public, read-only request interception. |
 | `browseros` | Reads signed-in or dynamic pages. | Uses direct, read-only MCP calls through a fixed local endpoint. |
 | `x` | Reads an account's posts and replies through BrowserOS Neo. | Paginates Latest search until an accepted post overlaps. |
+| `hn_discussions` | Searches Hacker News posts and comments. | Fetches complete Firebase comment trees for matching threads. |
+| `discourse` | Searches posts in a public Discourse forum. | Fetches every post in each matching topic. |
+| `lobsters` | Searches Lobsters comments. | Fetches the parent stories and complete comment lists. |
+| `reddit_discussions` | Reads subreddit comment feeds. | Includes the available parent thread feed; replies can be omitted. |
+| `x_discussions` | Searches X posts and replies across accounts. | Reads matching posts and the displayed parent context through Neo. |
 | `sel4_news` | Reads official seL4 news archives. | Traverses every publisher-listed year and preserves year-specific article anchors. |
 
 Prefer official APIs and feeds over page scraping. When a page needs an authenticated browser session, use BrowserOS.
@@ -150,6 +155,7 @@ SSS stores positive and negative judgments. By default, it reassesses changed po
 The revision key covers the complete observation JSON, including its title, URL, publication time, and extracted data.
 Object key order and acquisition time do not trigger reassessment.
 Set `trigger: new_item` to assess each accepted identity once. Edits, quote changes, and returning identities do not trigger inference.
+Set `trigger: until_match` to reassess changed observations until the first positive match. That identity then stays quiet, including after edits or reappearance.
 An unaccepted post can retry after an assessment failure.
 Old data-only cache entries refresh once in revision mode. A positive refresh can repeat an earlier alert.
 The strict-new mode still skips accepted IDs before checking the revision key.
@@ -255,6 +261,40 @@ Select **Mobile alerts** in the dashboard to configure your phone for ntfy.
 The guide shows each configured server and topic, subscription links, and environment variable names for authentication.
 If no channel exists, copy its example into a recipe. Save the recipe, then subscribe in the ntfy mobile app.
 The guide and editor do not send test notifications.
+
+### Formal-verification discussion alerts
+
+The `monitors/discussion-*.yaml` recipes search comments as well as original posts. They send email when a scan finds a qualifying discussion. The older `fv-*.yaml` research and release monitors remain disabled.
+
+A discussion qualifies if it contains a substantive exchange or one detailed technical comment. A relevant, substantive opening post also qualifies. The original title can concern another subject. The model checks practical experience, technical arguments, questions, methods, and tradeoffs. A passing mention or a bare link does not qualify.
+
+Hacker News and Lobsters searches discover relevant comments under any parent topic. Hacker News uses Algolia for discovery and the official Firebase API for complete comment trees. Lobsters uses comment search and its public story API. Discourse search covers posts throughout each forum, then retrieves the public post manifest and its available bodies. The thirteen forum recipes cover Rocq, Rust Users, Rust Internals, Julia, OCaml, Haskell, Python, Swift, Kotlin, Scala Users, Scala Contributors, NixOS, and Zig. The forum recipes mark explicitly deleted or hidden posts as unavailable. They still reject missing post identities, chunks, and inconsistent counts. Missing text is not evidence.
+
+Reddit monitors the public comment feeds for r/formalmethods, r/ProgrammingLanguages, r/compsci, r/programming, r/rust, r/haskell, r/math, r/MachineLearning, r/LocalLLaMA, and r/ComputerScience. It groups matching comments with other observed comments from the same parent thread. The bundled recipes use `context: feed`, which makes one request per community and does not fetch the original post. Set `context: thread` to fetch the available parent thread feed as well; the shared request limit can make that much slower. These feeds can omit comments, including between scans. This is not global Reddit comment search or complete conversation coverage.
+
+X searches indexed posts and replies across accounts. It includes the displayed parent context, not every reply in a conversation. X uses one identity per post or reply. Several qualifying replies in one conversation can each send an alert. X must remain signed in through BrowserOS Neo. Its first accepted result page sets a historical boundary. Later scans must reach an accepted result before they can advance that boundary.
+
+Hacker News, Lobsters, and X scan every 30 minutes. Forum and Reddit sources scan hourly. Delivery starts when a scan finds a match; source pacing and earlier scans can delay it.
+
+The first accepted scan establishes a quiet baseline. Changed observations receive another assessment until their first positive match. Later edits do not repeat that alert. Each email contains the source link, observed content, assessment, and supporting excerpts. Source failures and recoveries also send email after the configured failure threshold.
+
+Coverage depends on publisher search indexes, configured keywords, feed windows, and source access. Hacker News searches the last two days of posts and comments. Other public discussion searches use a seven-day window. Discourse date filters have day precision. A fresh comment can discover an old thread, but edits to old comments outside the search window can be missed. Public APIs do not supply atomic snapshots. An unaccounted-for post, missing page, inconsistent count, or exceeded limit fails the scan and preserves its accepted baseline.
+
+Large discussions use bounded groups of complete comments. Every group must finish before the result is accepted. The available root content repeats in each group, with parent context when it fits. A substantial exchange split across groups can be missed. One comment that exceeds the input limit fails the scan.
+
+Run the live acquisition check without model calls, state changes, or email:
+
+```bash
+SSS_BROWSEROS_ORIGINS=https://x.com node scripts/check-discussions.ts --parallel
+# Restrict the check to specific monitors:
+node scripts/check-discussions.ts discussion-hacker-news discussion-lobsters
+```
+
+Run `node scripts/evaluate-discussions.ts` to check the significance rubric with live model calls. It does not change state or send email.
+
+To prime new discussion namespaces, stop the scheduler and run `SSS_BROWSEROS_ORIGINS=https://x.com node scripts/prime-discussions.ts`. The script validates each new acquisition in the dry-run pipeline, then accepts that exact snapshot. Existing baselines stay unchanged. Restart the scheduler after priming succeeds.
+
+The fixture gate replays the discussion parser seed corpus. Run a short coverage-guided fuzz campaign with `node scripts/fuzz-discussions.ts 10`.
 
 ### Observation artifacts
 

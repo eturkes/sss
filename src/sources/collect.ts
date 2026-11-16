@@ -5,6 +5,11 @@ import type { SourceDependencies } from "./types.ts";
 
 export async function collectSource(source: Source, dependencies: SourceDependencies, context?: CollectorContext): Promise<Collection> {
   switch (source.type) {
+    case "reddit_discussions": return (await import("./reddit-discussions.ts")).collectRedditDiscussions(source, dependencies);
+    case "hn_discussions": return (await import("./hn-discussions.ts")).collectHnDiscussions(source, dependencies);
+    case "discourse": return (await import("./discourse.ts")).collectDiscourse(source, dependencies);
+    case "lobsters": return (await import("./lobsters.ts")).collectLobsters(source, dependencies);
+    case "x_discussions": return (await import("./social-discussions.ts")).collectXDiscussions(source, dependencies, context);
     case "feed": return (await import("./feed.ts")).collectFeed(source, dependencies);
     case "json": return (await import("./json.ts")).collectJson(source, dependencies);
     case "html": return (await import("./html.ts")).collectHtml(source, dependencies);

@@ -1,0 +1,160 @@
+[
+  {
+    "target": "hn",
+    "payload": [
+      {
+        "hits": [
+          {
+            "objectID": "101",
+            "story_id": 100,
+            "created_at_i": 1794820000,
+            "_tags": [
+              "comment"
+            ]
+          }
+        ],
+        "nbHits": 1,
+        "nbPages": 1,
+        "page": 0,
+        "hitsPerPage": 2,
+        "exhaustiveNbHits": true
+      },
+      {
+        "id": 100,
+        "type": "story",
+        "title": "Unrelated story",
+        "time": 1794000000,
+        "by": "author",
+        "kids": [
+          101
+        ],
+        "descendants": 1
+      },
+      {
+        "id": 101,
+        "parent": 100,
+        "type": "comment",
+        "time": 1794820000,
+        "by": "reader",
+        "text": "<p>Formal verification: α  → β</p>"
+      }
+    ]
+  },
+  {
+    "target": "discourse",
+    "payload": [
+      {
+        "posts": [
+          {
+            "id": 101,
+            "topic_id": 42,
+            "created_at": "2026-11-16T10:00:00Z"
+          }
+        ],
+        "grouped_search_result": {
+          "error": null,
+          "post_ids": [
+            101
+          ],
+          "more_full_page_results": null
+        }
+      },
+      {
+        "id": 42,
+        "title": "Unrelated topic",
+        "created_at": "2020-01-01T00:00:00Z",
+        "posts_count": 1,
+        "post_stream": {
+          "stream": [
+            101
+          ],
+          "posts": [
+            {
+              "id": 101,
+              "topic_id": 42,
+              "post_number": 1,
+              "username": "reader",
+              "created_at": "2026-11-16T10:00:00Z",
+              "cooked": "<p>Formal verification: α  → β</p>",
+              "reply_to_post_number": null
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "target": "lobsters",
+    "payload": [
+      "<input name=\"what\" value=\"comments\" checked><input name=\"order\" value=\"newest\" checked><div class=\"searchresults\"><summary><span class=\"heading\">1 results for </span></summary></div><div class=\"comment\" data-shortid=\"abc123\"><div class=\"byline\"><time data-at-unix=\"1794820000\"></time><a href=\"/s/topic1/unrelated\">Unrelated title</a></div></div>",
+      {
+        "short_id": "topic1",
+        "title": "Unrelated topic",
+        "created_at": "2020-01-01T00:00:00Z",
+        "description": "<p>Context</p>",
+        "submitter_user": "author",
+        "comment_count": 1,
+        "comments": [
+          {
+            "short_id": "abc123",
+            "created_at": "2026-11-16T10:00:00Z",
+            "parent_comment": null,
+            "commenting_user": "reader",
+            "comment": "<p>Formal verification: α  → β</p>",
+            "is_deleted": false,
+            "is_moderated": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "target": "x",
+    "payload": [
+      "[Name](https://x.com/alice)[@alice](https://x.com/alice)[1h](https://x.com/alice/status/2107700139066593612)Formal verification: α  → β[10](https://x.com/alice/status/2107700139066593612/analytics)"
+    ]
+  },
+  {
+    "target": "discourse_mark",
+    "payload": [
+      {
+        "posts": [
+          {
+            "id": 101,
+            "topic_id": 42,
+            "created_at": "2026-11-16T10:00:00Z"
+          }
+        ],
+        "grouped_search_result": {
+          "error": null,
+          "post_ids": [
+            101
+          ],
+          "more_full_page_results": null
+        }
+      },
+      {
+        "id": 42,
+        "title": "Unrelated topic",
+        "created_at": "2020-01-01T00:00:00Z",
+        "posts_count": 1,
+        "post_stream": {
+          "stream": [
+            101
+          ],
+          "posts": [
+            {
+              "id": 101,
+              "topic_id": 42,
+              "post_number": 1,
+              "username": "reader",
+              "created_at": "2026-11-16T10:00:00Z",
+              "reply_to_post_number": null,
+              "hidden": true
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

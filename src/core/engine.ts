@@ -19,7 +19,7 @@ export type RunResult = {
 
 export type CollectorContext = { previousItems: ScanItem[]; bootstrapItemIds?: string[]; newItemsOnly?: boolean };
 export type Collector = (source: unknown, context?: CollectorContext) => Promise<Collection>;
-export type ItemAssessor = (item: ScanItem, rule: AssessmentRule) => Promise<AssessmentResult>;
+export type ItemAssessor = (item: ScanItem, rule: AssessmentRule, options?: { discussion?: boolean }) => Promise<AssessmentResult>;
 const MONITOR_LEASE_MS = 30 * 60_000;
 
 export class ScannerEngine {
@@ -82,7 +82,7 @@ export class ScannerEngine {
 
     const sourceItems = structuredClone(collection.items);
     // Feed markup can contain URL fragments whose Unicode and spacing are meaningful.
-    const rawBaseline = ["x", "feed", "sel4_news"].includes(monitor.source.type);
+    const rawBaseline = ["x", "feed", "sel4_news", "discourse", "hn_discussions", "lobsters", "x_discussions", "reddit_discussions"].includes(monitor.source.type);
     const items = rawBaseline ? sourceItems : sourceItems.map((item) => ({ ...item, data: JSON.parse(canonicalJson(item.data)) as JsonObject }));
     if (dryRun) return { status: "ok_unchanged", items, events: [], dryRun: true };
     if (!runId || !runToken) throw new Error("invariant: persisted run has no lease");
@@ -109,13 +109,14 @@ export class ScannerEngine {
           if (rule.enabled === false || rule.type !== "llm_assessment") continue;
           const previousState = this.store.ruleState(monitor.id, namespace, rule.id, item.id);
           if (rule.trigger === "new_item" && (previousState !== undefined || existing.has(item.id))) continue;
+          if (rule.trigger === "until_match" && previousState?.["suggestive"] === true) continue;
           // Separate complete-observation keys from legacy data-only hashes.
           const revision = `input-v1:${sha256(assessmentJson(JSON.parse(JSON.stringify(item)) as JsonObject))}`;
           if (previousState?.["revision"] === revision) continue;
           let result: AssessmentResult | undefined;
           if (baselineExists || rule.bootstrap === "evaluate_current") {
             assertLease();
-            result = await this.assess(structuredClone(item), rule);
+            result = await this.assess(structuredClone(item), rule, { discussion: ["hn_discussions", "discourse", "lobsters", "reddit_discussions"].includes(monitor.source.type) });
             assertAssessment(result);
             assertLease();
             if (options.monitorLeaseToken) {
