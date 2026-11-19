@@ -36,6 +36,7 @@ pnpm sss serve
 
 Open <http://127.0.0.1:7337>. `serve` runs the scheduler, alert outbox, and dashboard.
 Use `daemon` to run the scheduler and delivery worker without the dashboard.
+All bundled recipes are disabled for scheduled scans. You can still check a disabled recipe with `sss test`.
 Select **Edit recipe** to change an existing monitor. Save validates the YAML and applies the recipe without a scan.
 The editor rejects stale edits and active scans. Keep the monitor ID and use environment references for credentials.
 
@@ -264,7 +265,7 @@ The guide and editor do not send test notifications.
 
 ### Formal-verification discussion alerts
 
-The `monitors/discussion-*.yaml` recipes search comments as well as original posts. They send email when a scan finds a qualifying discussion. The older `fv-*.yaml` research and release monitors remain disabled.
+The `monitors/discussion-*.yaml` recipes are paused. When enabled, they search comments as well as original posts and send email when a scan finds a qualifying discussion.
 
 A discussion qualifies if it contains a substantive exchange or one detailed technical comment. A relevant, substantive opening post also qualifies. The original title can concern another subject. The model checks practical experience, technical arguments, questions, methods, and tradeoffs. A passing mention or a bare link does not qualify.
 
@@ -274,7 +275,7 @@ Reddit monitors the public comment feeds for r/formalmethods, r/ProgrammingLangu
 
 X searches indexed posts and replies across accounts. It includes the displayed parent context, not every reply in a conversation. X uses one identity per post or reply. Several qualifying replies in one conversation can each send an alert. X must remain signed in through BrowserOS Neo. Its first accepted result page sets a historical boundary. Later scans must reach an accepted result before they can advance that boundary.
 
-Hacker News, Lobsters, and X scan every 30 minutes. Forum and Reddit sources scan hourly. Delivery starts when a scan finds a match; source pacing and earlier scans can delay it.
+The recipes schedule Hacker News, Lobsters, and X scans every 30 minutes and forum and Reddit scans every hour. Delivery starts when a scan finds a match. Source pacing and earlier scans can delay it.
 
 The first accepted scan establishes a quiet baseline. Changed observations receive another assessment until their first positive match. Later edits do not repeat that alert. Each email contains the source link, observed content, assessment, and supporting excerpts. Source failures and recoveries also send email after the configured failure threshold.
 
@@ -282,17 +283,18 @@ Coverage depends on publisher search indexes, configured keywords, feed windows,
 
 Large discussions use bounded groups of complete comments. Every group must finish before the result is accepted. The available root content repeats in each group, with parent context when it fits. A substantial exchange split across groups can be missed. One comment that exceeds the input limit fails the scan.
 
-Run the live acquisition check without model calls, state changes, or email:
+To check paused recipes, pass their IDs to the live acquisition check. It does not call the model, change state, or send email.
 
 ```bash
-SSS_BROWSEROS_ORIGINS=https://x.com node scripts/check-discussions.ts --parallel
-# Restrict the check to specific monitors:
 node scripts/check-discussions.ts discussion-hacker-news discussion-lobsters
+SSS_BROWSEROS_ORIGINS=https://x.com node scripts/check-discussions.ts discussion-x
 ```
+
+Run the script without IDs to check enabled discussion recipes only. Add `--parallel` to check several sources in parallel.
 
 Run `node scripts/evaluate-discussions.ts` to check the significance rubric with live model calls. It does not change state or send email.
 
-To prime new discussion namespaces, stop the scheduler and run `SSS_BROWSEROS_ORIGINS=https://x.com node scripts/prime-discussions.ts`. The script validates each new acquisition in the dry-run pipeline, then accepts that exact snapshot. Existing baselines stay unchanged. Restart the scheduler after priming succeeds.
+When you resume discussion monitoring, keep the scheduler stopped while you enable the recipes you want to run. Run `SSS_BROWSEROS_ORIGINS=https://x.com node scripts/prime-discussions.ts` to establish any missing baselines for enabled recipes. The script validates each new acquisition in a dry run, then accepts that exact snapshot. Existing baselines stay unchanged. Start the scheduler after priming succeeds.
 
 The fixture gate replays the discussion parser seed corpus. Run a short coverage-guided fuzz campaign with `node scripts/fuzz-discussions.ts 10`.
 
@@ -351,9 +353,9 @@ SSS rejects tool-call output and incomplete responses. Codex model discovery ref
 
 ### Usage-reset monitors
 
-[`monitors/thsottiaux-codex-reset.yaml`](./monitors/thsottiaux-codex-reset.yaml) watches `@thsottiaux` for Codex usage-limit reset hints every five minutes.
-[`monitors/claudedevs-claude-reset.yaml`](./monitors/claudedevs-claude-reset.yaml) watches `@ClaudeDevs` for Claude.ai and Claude Code usage-reset hints on the same schedule.
-Both use `gpt-6.1-terra` with `medium` reasoning. They send matching observations to the configured Gmail recipient.
+Both bundled reset recipes are paused. When enabled, [`monitors/thsottiaux-codex-reset.yaml`](./monitors/thsottiaux-codex-reset.yaml) watches `@thsottiaux` for Codex usage-limit reset hints every five minutes.
+[`monitors/claudedevs-claude-reset.yaml`](./monitors/claudedevs-claude-reset.yaml) uses the same schedule to watch `@ClaudeDevs` for Claude.ai and Claude Code usage-reset hints.
+Both use `gpt-6.1-terra` with `medium` reasoning and send matching observations to the configured Gmail recipient when enabled.
 Both favor recall over precision. A plausible reset hint can trigger an alert even when the product or timing is implicit.
 The trusted rubric supplies the account context. Fresh confirmations of completed resets also qualify.
 Clearly unrelated posts and clearly other-product-only resets remain outside the target.
